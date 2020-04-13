@@ -10,12 +10,13 @@ import world
 import numpy as np
 import torch
 import utils
-from sample import UniformSample_original
+from sample import UniformSample_original, UniformSample_DNS, DNS_sampling
 import dataloader
 from pprint import pprint
 from time import time
 from tqdm import tqdm
 import model
+from model import PairWiseModel, BasicModel
 import multiprocessing
 
 CORES = multiprocessing.cpu_count() // 2
@@ -51,6 +52,39 @@ def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=N
     aver_loss = aver_loss / total_batch
     return f"[BPR[aver loss{aver_loss:.3e}]"
     
+def BPR_train_DNS(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
+    Recmodel: PairWiseModel = recommend_model
+    Recmodel.train()
+    bpr: utils.BPRLoss = loss_class
+    allusers = list(range(dataset.n_users))
+    S, sam_time = UniformSample_DNS(allusers, dataset)
+    print(f"DNS[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
+    users = torch.Tensor(S[:, 0]).long()
+    posItems = torch.Tensor(S[:, 1]).long()
+    users = users.to(world.device)
+    posItems = posItems.to(world.device)
+    users, posItems = utils.shuffle(users, posItems)
+    total_batch = len(users) // world.config['bpr_batch_size'] + 1
+    DNS_time = time()
+    DNS_time1 = 0.
+    DNS_time2 = 0.
+    aver_loss = 0.
+    for (batch_i,
+         (batch_users,
+          batch_pos)) in enumerate(utils.minibatch(users,
+                                                   posItems,
+                                                   batch_size=world.config['bpr_batch_size'])):
+        batch_neg, sam_time = DNS_sampling(batch_users, dataset, Recmodel)
+        cri = bpr.stageOne(batch_users, batch_pos, batch_neg)
+        DNS_time1 += sam_time[1]
+        DNS_time2 += sam_time[2]
+        aver_loss += cri
+        if world.tensorboard:
+            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
+    print(f"DNS[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
+    aver_loss = aver_loss / total_batch
+    return f"[BPR[aver loss{aver_loss:.3e}]"
+    
     
 def test_one_batch(X):
     sorted_items = X[0].numpy()
@@ -73,7 +107,7 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
     testDict: dict = dataset.testDict
     Recmodel: model.LightGCN
     # eval mode with no dropout
-    Recmodel = Recmodel.eval()
+    Recmodel.eval()
     max_K = max(world.topks)
     if multicore == 1:
         pool = multiprocessing.Pool(CORES)

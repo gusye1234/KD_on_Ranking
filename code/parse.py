@@ -43,4 +43,6 @@ def parse_args():
     parser.add_argument('--pretrain', type=int, default=0, help='whether we use pretrained weight or not')
     parser.add_argument('--seed', type=int, default=2020, help='random seed')
     parser.add_argument('--model', type=str, default='lgn', help='rec-model, support [mf, lgn]')
+    parser.add_argument('--method', type=str, default='original', help='train process [original, dns]')
+    parser.add_argument('--dns_k', type=int, default=8, help='rec-model, support [mf, lgn]')
     return parser.parse_args()

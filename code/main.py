@@ -16,8 +16,11 @@ import register
 from register import dataset
 
 Recmodel = register.MODELS[world.model_name](world.config, dataset)
+procedure = register.TRAIN[world.method]
 Recmodel = Recmodel.to(world.device)
 bpr = utils.BPRLoss(Recmodel, world.config)
+
+
 
 weight_file = utils.getFileName()
 print(f"load and save to {weight_file}")
@@ -41,7 +44,7 @@ try:
         print('======================')
         print(f'EPOCH[{epoch}/{world.TRAIN_epochs}]')
         start = time.time()
-        output_information = Procedure.BPR_train_original(dataset, Recmodel, bpr, epoch, neg_k=Neg_k,w=w)
+        output_information = procedure(dataset, Recmodel, bpr, epoch, neg_k=Neg_k,w=w)
         
         print(f'[saved][{output_information}]')
         torch.save(Recmodel.state_dict(), weight_file)
