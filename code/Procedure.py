@@ -10,6 +10,7 @@ import world
 import numpy as np
 import torch
 import utils
+from sample import UniformSample_original
 import dataloader
 from pprint import pprint
 from time import time
@@ -19,45 +20,12 @@ import multiprocessing
 
 CORES = multiprocessing.cpu_count() // 2
 
-
-def BPR_train(dataset,recommend_model, loss_class, epoch, neg_k = 4,w=None):
-    Recmodel = recommend_model
-    Recmodel = Recmodel.train()
-    bpr : utils.BPRLoss = loss_class  
-    allusers = list(range(dataset.n_users))        
-    S, sam_time = utils.UniformSample_allpos_largeDataset(allusers, dataset, neg_k)
-    print(f"BPR[sample time][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
-    users = torch.Tensor(S[:,0]).long()
-    posItems = torch.Tensor(S[:,1]).long()
-    negItems = torch.Tensor(S[:,2]).long()
-    
-    users    = users.to(world.device)
-    posItems = posItems.to(world.device)
-    negItems = negItems.to(world.device)
-    users, posItems, negItems = utils.shuffle(users, posItems, negItems)
-    total_batch = len(users)//world.config['bpr_batch_size'] + 1
-    aver_loss = 0.
-    for (batch_i, 
-        (batch_users, 
-         batch_pos, 
-         batch_neg)) in enumerate(utils.minibatch(users, 
-                                                  posItems, 
-                                                  negItems, 
-                                                  batch_size=world.config['bpr_batch_size'])):
-        cri = bpr.stageOne(batch_users, batch_pos, batch_neg)
-        aver_loss += cri
-        if world.tensorboard:
-            w.add_scalar(f'BPRLoss/BPR', cri, epoch*int(len(users)/world.config['bpr_batch_size']) + batch_i)
-    aver_loss = aver_loss/total_batch
-    return f"[BPR[aver loss{aver_loss:.3e}]"
-
-
 def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
     Recmodel = recommend_model
     Recmodel.train()
     bpr: utils.BPRLoss = loss_class
     allusers = list(range(dataset.n_users))
-    S, sam_time = utils.UniformSample_original(allusers, dataset)
+    S, sam_time = UniformSample_original(allusers, dataset)
     print(f"BPR[sample time][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
     users = torch.Tensor(S[:, 0]).long()
     posItems = torch.Tensor(S[:, 1]).long()
@@ -102,7 +70,7 @@ def test_one_batch(X):
 def Test(dataset, Recmodel, epoch, w=None, multicore=0):
     u_batch_size = world.config['test_u_batch_size']
     dataset: utils.BasicDataset
-    testDict: dict = dataset.getTestDict()
+    testDict: dict = dataset.testDict
     Recmodel: model.LightGCN
     # eval mode with no dropout
     Recmodel = Recmodel.eval()

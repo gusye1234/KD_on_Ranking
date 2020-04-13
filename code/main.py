@@ -31,7 +31,7 @@ Neg_k = 1
 
 # init tensorboard
 if world.tensorboard:
-    w : SummaryWriter = SummaryWriter("./runs/"+time.strftime("%m-%d-%Hh%Mm%Ss-") + "-" + world.comment)
+    w : SummaryWriter = SummaryWriter("./runs/"+time.strftime("%m-%d-%Hh%Mm%Ss-") + weight_file + '_' + world.comment)
 else:
     w = None
     world.cprint("not enable tensorflowboard")
@@ -45,9 +45,8 @@ try:
         
         print(f'[saved][{output_information}]')
         torch.save(Recmodel.state_dict(), weight_file)
-        if epoch %10 == 0 and epoch != 0:
+        if epoch %10 == 0:
             cprint("[TEST]")
-            testDict = dataset.getTestDict()
             Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
         print(f"[TOTAL TIME] {time.time() - start}")
 finally:
