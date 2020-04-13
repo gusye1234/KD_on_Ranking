@@ -1,4 +1,5 @@
 
+import os
 import world
 import utils
 from world import cprint
@@ -20,9 +21,9 @@ procedure = register.TRAIN[world.method]
 Recmodel = Recmodel.to(world.device)
 bpr = utils.BPRLoss(Recmodel, world.config)
 
-
-
-weight_file = utils.getFileName()
+# =============================
+file = utils.getFileName()
+weight_file = os.path.join(world.FILE_PATH, file)
 print(f"load and save to {weight_file}")
 if world.LOAD:
     try:
@@ -30,11 +31,14 @@ if world.LOAD:
         world.cprint(f"loaded model weights from {weight_file}") 
     except FileNotFoundError:
         print(f"{weight_file} not exists, start from beginning")
+# ============================
+earlystop = utils.EarlyStop(patience=3, model=Recmodel, filename=weight_file)
+
 Neg_k = 1
 
 # init tensorboard
 if world.tensorboard:
-    w : SummaryWriter = SummaryWriter("./runs/"+time.strftime("%m-%d-%Hh%Mm%Ss-") + weight_file + '_' + world.comment)
+    w : SummaryWriter = SummaryWriter( os.path.join(world.BOARD_PATH,time.strftime("%m-%d-%Hh%Mm%Ss-") + world.method + file + '_' + world.comment))
 else:
     w = None
     world.cprint("not enable tensorflowboard")
@@ -47,11 +51,15 @@ try:
         output_information = procedure(dataset, Recmodel, bpr, epoch, neg_k=Neg_k,w=w)
         
         print(f'[saved][{output_information}]')
-        torch.save(Recmodel.state_dict(), weight_file)
-        if epoch %10 == 0:
+        if epoch %5 == 0:
             cprint("[TEST]")
-            Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
+            results = Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
         print(f"[TOTAL TIME] {time.time() - start}")
+        if earlystop.step(epoch,results):
+            print("trigger earlystop")
+            print(f"best epoch:{earlystop.best_epoch}")
+            print(f"best results:{earlystop.best_result}")
+            break
 finally:
     if world.tensorboard:
         w.close()

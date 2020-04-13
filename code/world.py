@@ -13,6 +13,11 @@ from parse import parse_args
 import multiprocessing
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+ROOT_PATH = '/Users/gus/Desktop/KD_experiement'
+CODE_PATH = os.path.join(ROOT_PATH, 'code')
+FILE_PATH = os.path.join(CODE_PATH, 'checkpoints')
+BOARD_PATH = os.path.join(CODE_PATH, 'runs')
+DATA_PATH = os.path.join(ROOT_PATH, 'data')
 args = parse_args()
 
 config = {}
@@ -34,6 +39,8 @@ config['A_split'] = False
 config['bigdata'] = False
 DNS_K = args.dns_k
 method = args.method
+if method=='dns' and DNS_K == 1:
+    method = 'original'
 
 GPU = torch.cuda.is_available()
 device = torch.device('cuda' if GPU else "cpu")

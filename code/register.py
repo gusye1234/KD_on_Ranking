@@ -1,3 +1,4 @@
+import os
 import world
 import dataloader
 import model
@@ -5,10 +6,14 @@ import utils
 import Procedure
 from pprint import pprint
 
+data_path = os.path.join(
+                    world.DATA_PATH, 
+                    world.dataset)
+
 if world.dataset in ['gowalla', 'yelp2018', 'amazon-book']:
-    dataset = dataloader.Loader(path="../data/"+world.dataset)
+    dataset = dataloader.Loader(path=data_path)
 elif world.dataset == 'lastfm':
-    dataset = dataloader.LastFM()
+    dataset = dataloader.LastFM(path=data_path)
 
 print('===========config================')
 pprint(world.config)
@@ -29,5 +34,5 @@ MODELS = {
 
 TRAIN = {
     'original': Procedure.BPR_train_original,
-    'dns': Procedure.BPR_train_DNS
+    'dns': Procedure.BPR_train_DNS_neg
 }

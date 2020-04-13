@@ -73,6 +73,30 @@ def UniformSample_original(users, dataset):
 
 # ===================end samplers==========================
 # =====================utils====================================
+class EarlyStop:
+    def __init__(self, patience, model, filename):
+        self.patience = patience
+        self.model = model
+        self.filename = filename
+        self.suffer = 0
+        self.best = 0
+        self.best_result = None
+        self.best_epoch = 0
+    
+    def step(self, epoch, performance):
+        if performance['recall'] < self.best:
+            self.suffer += 1
+            if self.suffer >= self.patience:
+                return True
+        else:
+            self.suffer = 0
+            self.best = performance['recall']
+            self.best_result = performance
+            self.best_epoch = epoch
+            torch.save(self.model.state_dict(), self.filename)
+            return False
+                
+
 
 def set_seed(seed):
     np.random.seed(seed)   
@@ -86,7 +110,7 @@ def getFileName():
         file = f"mf-{world.dataset}-{world.config['latent_dim_rec']}.pth.tar"
     elif world.model_name == 'lgn':
         file = f"lgn-{world.dataset}-{world.config['lightGCN_n_layers']}-{world.config['latent_dim_rec']}.pth.tar"
-    return os.path.join(world.PATH,file)
+    return file
 
 def minibatch(*tensors, **kwargs):
 
