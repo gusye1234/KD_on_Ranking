@@ -25,21 +25,23 @@ def UniformSample_original(users, dataset):
     negItems = []
     sample_time1 = 0.
     sample_time2 = 0.
+    BinForUser = np.zeros(shape = (dataset.m_items, )).astype("int")
     for user in range(dataset.n_users):
         posForUser = allPos[user]
         if len(posForUser) == 0:
             continue
+        BinForUser[:] = 0
+        BinForUser[posForUser] = 1
         for i in range(per_user_num):
             posindex = np.random.randint(0, len(posForUser))
             positem = posForUser[posindex]
             while True:
                 negitem = np.random.randint(0, dataset.m_items)
-                if negitem in posForUser:
+                if BinForUser[negitem] == 1:
                     continue
                 else:
                     break
-            add_pair = [user, positem, negitem]
-            S.append(add_pair)
+            S.append([user, positem, negitem])
     return np.array(S), [time() - total_start, 0., 0.]
 
 def UniformSample_DNS_deter(users, dataset, dns_k):
