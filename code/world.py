@@ -60,6 +60,7 @@ if model_name not in all_models:
 TRAIN_epochs = args.epochs
 LOAD = args.load
 PATH = args.path
+ALLDATA = args.alldata
 topks = eval(args.topks)
 tensorboard = args.tensorboard
 comment = args.comment

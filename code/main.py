@@ -51,15 +51,17 @@ try:
         output_information = procedure(dataset, Recmodel, bpr, epoch, neg_k=Neg_k,w=w)
         
         print(f'[saved][{output_information}]')
-        if epoch %5 == 0:
+        print(f"[TOTAL TIME] {time.time() - start}")
+        if epoch %3 == 0:
+            start = time.time()
             cprint("[TEST]")
             results = Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
-        print(f"[TOTAL TIME] {time.time() - start}")
-        if earlystop.step(epoch,results):
-            print("trigger earlystop")
-            print(f"best epoch:{earlystop.best_epoch}")
-            print(f"best results:{earlystop.best_result}")
-            break
+            print(f"[TEST TIME] {time.time() - start}")
+            if earlystop.step(epoch,results):
+                print("trigger earlystop")
+                print(f"best epoch:{earlystop.best_epoch}")
+                print(f"best results:{earlystop.best_result}")
+                break
 finally:
     if world.tensorboard:
         w.close()

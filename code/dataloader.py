@@ -272,6 +272,10 @@ class Loader(BasicDataset):
         self.testUser = np.array(testUser)
         self.testItem = np.array(testItem)
         
+        if world.ALLDATA:
+            self.trainUser = np.concatenate([self.trainUser, self.testUser])
+            self.trainItem = np.concatenate([self.trainItem, self.testItem])
+        
         self.Graph = None
         print(f"{self.trainDataSize} interactions for training")
         print(f"{world.dataset} Sparsity : {(self.trainDataSize + self.testDataSize) / self.n_users / self.m_items}")
@@ -332,7 +336,11 @@ class Loader(BasicDataset):
         print("loading adjacency matrix")
         if self.Graph is None:
             try:
-                pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat.npz')
+                if world.ALLDATA:
+                    print(f"[all data]{self.path}")
+                    pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat_all.npz')
+                else:
+                    pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat.npz')
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
             except :
@@ -356,7 +364,10 @@ class Loader(BasicDataset):
                 norm_adj = norm_adj.tocsr()
                 end = time()
                 print(f"costing {end-s}s, saved norm_mat...")
-                sp.save_npz(self.path + '/s_pre_adj_mat.npz', norm_adj)
+                if world.ALLDATA:
+                    sp.save_npz(self.path + '/s_pre_adj_mat_all.npz', norm_adj)
+                else:
+                    sp.save_npz(self.path + '/s_pre_adj_mat.npz', norm_adj)
 
             if self.split == True:
                 self.Graph = self._split_A_hat(norm_adj)
