@@ -125,9 +125,12 @@ class Loader(BasicDataset):
         self.testItem = np.array(testItem)
         
         if world.ALLDATA:
+            self._trainUser = self.trainUser
+            self._trainItem = self.trainItem
             self.trainUser = np.concatenate([self.trainUser, self.testUser])
             self.trainItem = np.concatenate([self.trainItem, self.testItem])
             self.traindataSize += self.testDataSize
+            
         
         self.Graph = None
         print(f"{self.trainDataSize} interactions for training")
@@ -144,6 +147,9 @@ class Loader(BasicDataset):
         # pre-calculate
         self._allPos = self.getUserPosItems(list(range(self.n_user)))
         self.__testDict = self.__build_test()
+        if world.ALLDATA:
+            self.UserItemNet = csr_matrix((np.ones(len(self._trainUser)), (self._trainUser, self._trainItem)),
+                                      shape=(self.n_user, self.m_item))
         print(f"{world.dataset} is ready to go")
 
     @property
