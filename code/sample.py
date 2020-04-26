@@ -103,6 +103,7 @@ def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 204
         sample_time1 = 0.
         sample_time2 = 0.
         BinForUser = np.zeros(shape = (dataset.m_items, )).astype("int")
+        sample_shape = int(dns_k*1.5)+1
         BATCH_SCORE = None
         now = 0
         for user in range(dataset.n_users):
@@ -128,10 +129,11 @@ def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 204
                 posindex = np.random.randint(0, len(posForUser))
                 positem = posForUser[posindex]
                 while True:
-                    negitems = np.random.randint(0, dataset.m_items, size=(dns_k*2, ))
+                    negitems = np.random.randint(0, dataset.m_items, size=(sample_shape, ))
                     itemIndex = BinForUser[negitems]
                     negInOne = negitems[itemIndex == 0]
                     if len(negInOne) < dns_k:
+                        print("fail one")
                         continue
                     else:
                         negitems = negitems[:dns_k]
