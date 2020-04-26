@@ -34,5 +34,6 @@ MODELS = {
 
 TRAIN = {
     'original': Procedure.BPR_train_original,
-    'dns': Procedure.BPR_train_DNS_neg
+    # 'dns': Procedure.BPR_train_DNS_neg
+    'dns': Procedure.BPR_train_DNS_batch
 }

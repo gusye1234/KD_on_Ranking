@@ -10,8 +10,8 @@ import world
 import numpy as np
 import torch
 import utils
-from sample import UniformSample_original,DNS_sampling_neg
-from sample import UniformSample_DNS_deter
+from sample import UniformSample_original,DNS_sampling_neg, DNS_sampling_batch
+from sample import UniformSample_DNS_deter, UniformSample_DNS_batch
 import dataloader
 from pprint import pprint
 from time import time
@@ -91,7 +91,52 @@ def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, neg_k=1, w=No
     print(f"DNS[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
     aver_loss = aver_loss / total_batch
     return f"[BPR[aver loss{aver_loss:.3e}]"
+
+def BPR_train_DNS_batch(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
+    Recmodel: PairWiseModel = recommend_model
+    Recmodel.train()
+    bpr: utils.BPRLoss = loss_class
+    allusers = list(range(dataset.n_users))
+    # S,sam_time = UniformSample_DNS_deter(allusers, dataset, world.DNS_K)
+    S, NEG_scores, sam_time = UniformSample_DNS_batch(allusers, dataset, Recmodel, world.DNS_K)
+
+    print(f"DNS[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
+    users = torch.Tensor(S[:, 0]).long()
+    posItems = torch.Tensor(S[:, 1]).long()
+    negItems = torch.Tensor(S[:, 2:]).long()
+    negScores = torch.Tensor(NEG_scores).float()
+    print(negItems.shape, negScores.shape)
     
+    users = users.to(world.device)
+    posItems = posItems.to(world.device)
+    negItems = negItems.to(world.device)
+    negScores = negScores.to(world.device)
+    users, posItems, negItems, negScores = utils.shuffle(users, posItems, negItems, negScores)
+    total_batch = len(users) // world.config['bpr_batch_size'] + 1
+    DNS_time = time()
+    DNS_time1 = 0.
+    DNS_time2 = 0.
+    aver_loss = 0.
+    for (batch_i,
+         (batch_users,
+          batch_pos,
+          batch_neg,
+          batch_scores)) in enumerate(utils.minibatch(users,
+                                                   posItems,
+                                                   negItems,
+                                                   negScores,
+                                                   batch_size=world.config['bpr_batch_size'])):
+        # batch_neg, sam_time = DNS_sampling_neg(batch_users, batch_neg, dataset, Recmodel)
+        batch_neg, sam_time = DNS_sampling_batch(batch_neg, batch_scores)
+        cri = bpr.stageOne(batch_users, batch_pos, batch_neg)
+        DNS_time1 += sam_time[0]
+        DNS_time2 += sam_time[2]
+        aver_loss += cri
+        if world.tensorboard:
+            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
+    print(f"DNS[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
+    aver_loss = aver_loss / total_batch
+    return f"[BPR[aver loss{aver_loss:.3e}]"  
     
 def test_one_batch(X):
     sorted_items = X[0].numpy()
