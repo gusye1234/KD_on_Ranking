@@ -13,7 +13,7 @@ from parse import parse_args
 import multiprocessing
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-ROOT_PATH = '/Users/gus/Desktop/KD_experiement'
+ROOT_PATH = '/Users/gus/Desktop/KD'
 CODE_PATH = os.path.join(ROOT_PATH, 'code')
 FILE_PATH = os.path.join(CODE_PATH, 'checkpoints')
 BOARD_PATH = os.path.join(CODE_PATH, 'runs')
@@ -61,6 +61,7 @@ TRAIN_epochs = args.epochs
 LOAD = args.load
 PATH = args.path
 ALLDATA = args.alldata
+TESTDATA = args.testdata
 topks = eval(args.topks)
 tensorboard = args.tensorboard
 comment = args.comment

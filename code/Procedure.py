@@ -10,8 +10,8 @@ import world
 import numpy as np
 import torch
 import utils
-from sample import UniformSample_original, UniformSample_DNS, DNS_sampling,DNS_sampling_neg, UniformSample_DNS_neg
-from sample import UniformSample_DNS_neg_multi, UniformSample_DNS_deter
+from sample import UniformSample_original,DNS_sampling_neg
+from sample import UniformSample_DNS_deter
 import dataloader
 from pprint import pprint
 from time import time
@@ -62,7 +62,6 @@ def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, neg_k=1, w=No
     # S,sam_time = UniformSample_DNS_neg_multi(allusers, dataset, world.DNS_K)
     print(f"DNS[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
     users = torch.Tensor(S[:, 0]).long()
-    print(len(users))
     posItems = torch.Tensor(S[:, 1]).long()
     negItems = torch.Tensor(S[:, 2:]).long()
     print(negItems.shape)
@@ -143,10 +142,11 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
             #rating = rating.cpu()
             exclude_index = []
             exclude_items = []
-            for range_i, items in enumerate(allPos):
-                exclude_index.extend([range_i] * len(items))
-                exclude_items.extend(items)
-            rating[exclude_index, exclude_items] = -1e5
+            if not world.TESTDATA:
+                for range_i, items in enumerate(allPos):
+                    exclude_index.extend([range_i] * len(items))
+                    exclude_items.extend(items)
+                rating[exclude_index, exclude_items] = -1e5
             _, rating_K = torch.topk(rating, k=max_K)
             del rating
             users_list.append(batch_users)
