@@ -16,7 +16,10 @@ from model import LightGCN
 from model import PairWiseModel
 import random
 import os
-        
+
+# ============================================================================
+# ============================================================================
+# pair loss
 class BPRLoss:
     def __init__(self, 
                  recmodel : PairWiseModel, 
@@ -36,43 +39,9 @@ class BPRLoss:
         self.opt.step()
         
         return loss.cpu().item()
-
-def UniformSample_original(users, dataset):
-    """
-    the original impliment of BPR Sampling in LightGCN
-    :return:
-        np.array
-    """
-    total_start = time()
-    dataset : BasicDataset
-    user_num = dataset.trainDataSize
-    users = np.random.randint(0, dataset.n_users, user_num)
-    allPos = dataset.allPos
-    S = []
-    sample_time1 = 0.
-    sample_time2 = 0.
-    for i, user in enumerate(users):
-        start = time()
-        posForUser = allPos[user]
-        if len(posForUser) == 0:
-            continue
-        sample_time2 += time() - start
-        posindex = np.random.randint(0, len(posForUser))
-        positem = posForUser[posindex]
-        while True:
-            negitem = np.random.randint(0, dataset.m_items)
-            if negitem in posForUser:
-                continue
-            else:
-                break
-        S.append([user, positem, negitem])
-        end = time()
-        sample_time1 += end - start
-    total = time() - total_start
-    return np.array(S), [total, sample_time1, sample_time2]
-
-# ===================end samplers==========================
-# =====================utils====================================
+# ============================================================================
+# ============================================================================
+# utils
 class EarlyStop:
     def __init__(self, patience, model, filename):
         self.patience = patience
@@ -95,8 +64,6 @@ class EarlyStop:
             self.best_epoch = epoch
             torch.save(self.model.state_dict(), self.filename)
             return False
-                
-
 
 def set_seed(seed):
     np.random.seed(seed)   
@@ -105,11 +72,12 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
     torch.manual_seed(seed)
 
-def getFileName():
-    if world.model_name == 'mf':
-        file = f"mf-{world.dataset}-{world.config['latent_dim_rec']}.pth.tar"
-    elif world.model_name == 'lgn':
-        file = f"lgn-{world.dataset}-{world.config['lightGCN_n_layers']}-{world.config['latent_dim_rec']}.pth.tar"
+def getFileName(model_name, dataset,rec_dim, layers=None):
+    if model_name == 'mf':
+        file = f"mf-{dataset}-{rec_dim}.pth.tar"
+    elif model_name == 'lgn':
+        assert layers is not None
+        file = f"lgn-{dataset}-{layers}-{rec_dim}.pth.tar"
     return file
 
 def minibatch(*tensors, **kwargs):
@@ -145,9 +113,15 @@ def shuffle(*arrays, **kwargs):
         return result, shuffle_indices
     else:
         return result
-
-# ====================Metrics==============================
-# =========================================================
+    
+def getTeacherConfig(config : dict):
+    teacher_dict = config.copy()
+    teacher_dict['lightGCN_n_layers'] = teacher_dict['teacher_layer']
+    teacher_dict['latent_dim_rec'] = teacher_dict['teacher_dim']
+    return teacher_dict
+# ============================================================================
+# ============================================================================
+# metrics
 def RecallPrecision_ATk(test_data, r, k):
     """
     test_data should be a list? cause users may have different amount of pos items. shape (test_batch, k)
@@ -160,7 +134,6 @@ def RecallPrecision_ATk(test_data, r, k):
     recall = np.sum(right_pred/recall_n)
     precis = np.sum(right_pred)/precis_n
     return {'recall': recall, 'precision': precis}
-
 
 def MRRatK_r(r, k):
     """
@@ -192,8 +165,6 @@ def NDCGatK_r(test_data,r,k):
     ndcg = dcg/idcg
     ndcg[np.isnan(ndcg)] = 0.
     return np.sum(ndcg)
-
-
 
 def getLabel(test_data, pred_data):
     r = []

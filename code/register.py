@@ -24,6 +24,8 @@ print("LOAD:", world.LOAD)
 print("Weight path:", world.PATH)
 print("Test Topks:", world.topks)
 print("Train Method:", world.method)
+if world.method == 'dns':
+    print(">>DNS K:", world.DNS_K)
 print("using bpr loss")
 print('===========end===================')
 
@@ -36,4 +38,8 @@ TRAIN = {
     'original': Procedure.BPR_train_original,
     # 'dns': Procedure.BPR_train_DNS_neg
     'dns': Procedure.BPR_train_DNS_batch
+}
+
+DISTILL_TRAIN = {
+    'experiment': Procedure.Distill_train
 }

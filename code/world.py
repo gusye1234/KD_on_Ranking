@@ -37,6 +37,9 @@ config['decay'] = args.decay
 config['pretrain'] = args.pretrain
 config['A_split'] = False
 config['bigdata'] = False
+config['teacher_dim'] = args.teacher_dim
+config['teacher_layer'] = args.teacher_layer
+config['teacher_model'] = 'lgn'
 DNS_K = args.dns_k
 method = args.method
 if method=='dns' and DNS_K == 1:

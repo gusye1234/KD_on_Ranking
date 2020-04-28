@@ -7,12 +7,130 @@ from time import time
 import multiprocessing
 
 ALLPOS = None
+# ============================================================================
+# ============================================================================
+# distill
+class DistillSample:
+    def __init__(self,
+                 dataset : BasicDataset, 
+                 student : PairWiseModel,
+                 teacher : PairWiseModel,
+                 dns_k : int,
+                 method : int = 3,
+                 beta = None):
+        """
+            method 1 for convex combination
+            method 2 for random indicator
+            method 3 for simplified method 2
+        """
+        self.beta = 0.99 if beta is None else beta
+        self.W = torch.Tensor([1.])
+        self.dataset = dataset
+        self.student = student
+        self.teacher = teacher
+        self.methods = {
+            1 : self.convex_combine,
+            2 : self.random_indicator,
+            3 : self.max_min
+        }
+        # self.Sample = self.methods[method]
+        self.Sample = self.max_min
+        self.dns_k = dns_k
+            
+    def UniformSample_DNS_batch(self, batch_score_size=512):
+        with torch.no_grad():
+            total_start = time()
+            dataset = self.dataset
+            dns_k = self.dns_k
+            user_num = dataset.trainDataSize
+            per_user_num = user_num // dataset.n_users + 1
+            allPos = dataset.allPos
+            S = []
+            NEG_scores = []
+            NEG_scores_teacher = []
+            sample_time1 = 0.
+            sample_time2 = 0.
+            BinForUser = np.zeros(shape = (dataset.m_items, )).astype("int")
+            sample_shape = int(dns_k*1.5)+1
+            BATCH_SCORE = None
+            BATCH_SCORE_teacher = None
+            now = 0
+            for user in range(dataset.n_users):
+                start1 = time()
+                if now >= batch_score_size:
+                    del BATCH_SCORE
+                    BATCH_SCORE = None
+                    BATCH_SCORE_teacher = None
+                if BATCH_SCORE is None:
+                    left_limit = user+batch_score_size
+                    batch_list = torch.arange(user, left_limit) if left_limit <= dataset.n_users else torch.arange(user, dataset.n_users)
+                    BATCH_SCORE = self.student.getUsersRating(batch_list)
+                    BATCH_SCORE_teacher = self.teacher.getUsersRating(batch_list)
+                    now = 0
+                sample_time1 += time()-start1
+                start2 = time()
+                scoreForuser = BATCH_SCORE[now]
+                scoreForuser_teacher = BATCH_SCORE_teacher[now] 
+                now += 1
+                posForUser = allPos[user]
+                if len(posForUser) == 0:
+                    continue
+                BinForUser[:] = 0
+                BinForUser[posForUser] = 1
+                for i in range(per_user_num):
+                    posindex = np.random.randint(0, len(posForUser))
+                    positem = posForUser[posindex]
+                    while True:
+                        negitems = np.random.randint(0, dataset.m_items, size=(sample_shape, ))
+                        itemIndex = BinForUser[negitems]
+                        negInOne = negitems[itemIndex == 0]
+                        if len(negInOne) < dns_k:
+                            print("fail one")
+                            continue
+                        else:
+                            negitems = negitems[:dns_k]
+                            break
+                        # if np.sum(BinForUser[negitems]) > 0:
+                        #     continue
+                        # else:
+                        #     break
+                    add_pair = [user, positem]
+                    add_pair.extend(negitems)
+                    NEG_scores.append(scoreForuser[negitems])
+                    NEG_scores_teacher.append(scoreForuser_teacher[negitems])
+                    S.append(add_pair)
+                sample_time2 += time() - start2
+        # ===========================
+        self.W *= self.beta
+        return torch.Tensor(S), torch.stack(NEG_scores),torch.stack(NEG_scores_teacher),[time() - total_start, sample_time1, sample_time2]        
 
-# ==========================================
-# ==========================================
+    def convex_combine(self, batch_neg, student_score, teacher_score):
+        pass
+    
+    def random_indicator(self, batch_neg, student_score, teacher_score):
+        pass
+    
+    def max_min(self, batch_neg, student_score, teacher_score):
+        start = time()
+        batch_list = torch.arange(0, len(batch_neg))
+        
+        _, student_max = torch.max(student_score, dim=1)
+        _, teacher_min = torch.min(teacher_score, dim=1)
+        student_neg = batch_neg[batch_list, student_max]
+        teacher_neg = batch_neg[batch_list, teacher_min]
+        Items = torch.zeros((len(batch_neg), )).long()
+        P_bern = torch.ones((len(batch_neg), ))*self.W
+        indicator = torch.bernoulli(P_bern).bool()
+        Items[indicator] = student_neg[indicator]
+        Items[~indicator] = teacher_neg[~indicator]
+        return Items.to(world.device), [time()-start, 0, 0]
+
+# ============================================================================
+# ============================================================================
+# uniform sample
 def UniformSample_original(users, dataset):
     """
-    the original impliment of BPR Sampling in LightGCN
+    the original impleyjb430ment of BPR Sampling in LightGCN
     NOTE: we can sample a whole epoch data at one time
     :return:
         np.array
@@ -45,8 +163,9 @@ def UniformSample_original(users, dataset):
                     break
             S.append([user, positem, negitem])
     return np.array(S), [time() - total_start, 0., 0.]
-# ==========================================
-# ==========================================
+# ============================================================================
+# ============================================================================
+# Dns sampling
 def UniformSample_DNS_deter(users, dataset, dns_k):
     """
     the original impliment of BPR Sampling in LightGCN
@@ -84,7 +203,27 @@ def UniformSample_DNS_deter(users, dataset, dns_k):
             S.append(add_pair)
     return np.array(S), [time() - total_start, 0., 0.]
 
-def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 2048):
+def DNS_sampling_neg(batch_users, batch_neg, dataset, recmodel):
+    start = time()
+    sam_time1 = time()
+    dns_k = world.DNS_K
+    with torch.no_grad():
+        sam_time2 = time()
+        NegItems = batch_neg
+        negitem_vector = NegItems.reshape((-1, )) # dns_k * |users|
+        user_vector = batch_users.repeat((dns_k, 1)).t().reshape((-1,))
+        scores = recmodel(user_vector, negitem_vector)
+        scores = scores.reshape((-1, dns_k))
+        negitem_vector = negitem_vector.reshape((-1, dns_k))
+        _, top1 = scores.max(dim=1)
+        idx = torch.arange(len(batch_users)).to(world.device)
+        negitems = negitem_vector[idx, top1]
+        sam_time2 = time() - sam_time2
+    return negitems, [time() - start, 0, sam_time2]
+# ============================================================================
+# ============================================================================
+# batch rating for Dns sampling
+def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 256):
     """
     the original impliment of BPR Sampling in LightGCN
     NOTE: we can sample a whole epoch data at one time
@@ -114,7 +253,7 @@ def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 204
             if BATCH_SCORE is None:
                 left_limit = user+batch_score_size
                 batch_list = torch.arange(user, left_limit) if left_limit <= dataset.n_users else torch.arange(user, dataset.n_users)
-                BATCH_SCORE = model.getUsersRating(batch_list).cpu().numpy()
+                BATCH_SCORE = model.getUsersRating(batch_list)
                 now = 0
             sample_time1 += time()-start1
             start2 = time()
@@ -147,35 +286,13 @@ def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 204
                 NEG_scores.append(scoreForuser[negitems])
                 S.append(add_pair)
             sample_time2 += time() - start2
-    return np.array(S), np.array(NEG_scores),[time() - total_start, sample_time1, sample_time2]
-
-
-def DNS_sampling_neg(batch_users, batch_neg, dataset, recmodel):
-    start = time()
-    sam_time1 = time()
-    dns_k = world.DNS_K
-    with torch.no_grad():
-        sam_time2 = time()
-        NegItems = batch_neg
-        negitem_vector = NegItems.reshape((-1, )) # dns_k * |users|
-        user_vector = batch_users.repeat((dns_k, 1)).t().reshape((-1,))
-        scores = recmodel(user_vector, negitem_vector)
-        scores = scores.reshape((-1, dns_k))
-        negitem_vector = negitem_vector.reshape((-1, dns_k))
-        _, top1 = scores.max(dim=1)
-        idx = torch.arange(len(batch_users)).to(world.device)
-        negitems = negitem_vector[idx, top1]
-        sam_time2 = time() - sam_time2
-    return negitems, [time() - start, 0, sam_time2]
+    return torch.Tensor(S), torch.stack(NEG_scores),[time() - total_start, sample_time1, sample_time2]
 
 def DNS_sampling_batch(batch_neg, batch_score):
     start = time()
     batch_list = torch.arange(0, len(batch_neg))
     _, index = torch.max(batch_score, dim=1)
     return batch_neg[batch_list, index], [time()-start, 0, 0]
-# ==========================================
-# ==========================================
-
 # ============================================================================
 # ============================================================================
 # multi-core sampling, not yet
