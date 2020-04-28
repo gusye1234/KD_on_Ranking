@@ -23,7 +23,7 @@ class DistillSample:
             method 2 for random indicator
             method 3 for simplified method 2
         """
-        self.beta = 0.99 if beta is None else beta
+        self.beta = 0.999 if beta is None else beta
         self.W = torch.Tensor([1.])
         self.dataset = dataset
         self.student = student
@@ -39,6 +39,7 @@ class DistillSample:
             
     def UniformSample_DNS_batch(self, batch_score_size=512):
         with torch.no_grad():
+            print(">>W now:", self.W)
             total_start = time()
             dataset = self.dataset
             dns_k = self.dns_k

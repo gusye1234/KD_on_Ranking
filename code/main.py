@@ -41,7 +41,7 @@ Recmodel = Recmodel.to(world.device)
 # ============================================================================
 # init tensorboard
 if world.tensorboard:
-    w : SummaryWriter = SummaryWriter( os.path.join(world.BOARD_PATH,time.strftime("%m-%d-%Hh%Mm%Ss-") + world.method + file + '_' + world.comment))
+    w : SummaryWriter = SummaryWriter( os.path.join(world.BOARD_PATH,time.strftime("%m-%d-%Hh%Mm%Ss-") + world.method + str(world.DNS_K) + file + '_' + world.comment))
 else:
     w = None
     world.cprint("not enable tensorflowboard")
