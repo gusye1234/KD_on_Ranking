@@ -140,7 +140,7 @@ class DistillSample:
 # uniform sample
 def UniformSample_original(users, dataset):
     """
-    the original impleyjb430ment of BPR Sampling in LightGCN
+    the original implement of BPR Sampling in LightGCN
     NOTE: we can sample a whole epoch data at one time
     :return:
         np.array

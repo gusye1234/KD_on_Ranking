@@ -65,6 +65,7 @@ LOAD = args.load
 PATH = args.path
 ALLDATA = args.alldata
 TESTDATA = args.testdata
+ONE = args.one
 T = args.T
 beta = args.beta
 p0 = args.p0

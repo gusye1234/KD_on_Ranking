@@ -9,12 +9,17 @@ from pprint import pprint
 data_path = os.path.join(
                     world.DATA_PATH, 
                     world.dataset)
+if world.ONE:
+    data_path = data_path + "_one"
+    print("{leave-one-out}:", data_path)
 
-if world.dataset in ['gowalla', 'yelp2018', 'amazon-book']:
-    dataset = dataloader.Loader(path=data_path)
-elif world.dataset == 'lastfm':
+if world.dataset == 'lastfm':
     dataset = dataloader.LastFM(path=data_path)
-
+else:
+    if world.ONE:
+        dataset = dataloader.LoaderOne(path=data_path)
+    else:
+        dataset = dataloader.Loader(path=data_path)
 print('===========config================')
 pprint(world.config)
 print("cores for test:", world.CORES)

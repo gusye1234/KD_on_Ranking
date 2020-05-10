@@ -12,7 +12,7 @@ from sample import DistillSample
 # ============================================================================
 # set seed
 utils.set_seed(world.seed)
-print(">>SEED:", world.seed)
+print(f"[SEED:{world.seed}]")
 # ============================================================================
 # init model
 import register

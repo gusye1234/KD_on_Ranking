@@ -80,14 +80,14 @@ class Loader(BasicDataset):
         self.folds = config['A_n_fold']
         self.mode_dict = {'train': 0, "test": 1}
         self.mode = self.mode_dict['train']
-        self.n_user = 0
-        self.m_item = 0
+        self.__n_users = 0
+        self.__m_items = 0
         train_file = path + '/train.txt'
         test_file = path + '/test.txt'
         self.path = path
         trainUniqueUsers, trainItem, trainUser = [], [], []
         testUniqueUsers, testItem, testUser = [], [], []
-        self.traindataSize = 0
+        self.__trainsize = 0
         self.testDataSize = 0
 
         with open(train_file) as f:
@@ -99,9 +99,9 @@ class Loader(BasicDataset):
                     trainUniqueUsers.append(uid)
                     trainUser.extend([uid] * len(items))
                     trainItem.extend(items)
-                    self.m_item = max(self.m_item, max(items))
-                    self.n_user = max(self.n_user, uid)
-                    self.traindataSize += len(items)
+                    self.__m_items = max(self.__m_items, max(items))
+                    self.__n_users = max(self.__n_users, uid)
+                    self.__trainsize += len(items)
         self.trainUniqueUsers = np.array(trainUniqueUsers)
         self.trainUser = np.array(trainUser)
         self.trainItem = np.array(trainItem)
@@ -115,11 +115,11 @@ class Loader(BasicDataset):
                     testUniqueUsers.append(uid)
                     testUser.extend([uid] * len(items))
                     testItem.extend(items)
-                    self.m_item = max(self.m_item, max(items))
-                    self.n_user = max(self.n_user, uid)
+                    self.__m_items = max(self.__m_items, max(items))
+                    self.__n_users = max(self.__n_users, uid)
                     self.testDataSize += len(items)
-        self.m_item += 1
-        self.n_user += 1
+        self.__m_items += 1
+        self.__n_users += 1
         self.testUniqueUsers = np.array(testUniqueUsers)
         self.testUser = np.array(testUser)
         self.testItem = np.array(testItem)
@@ -129,43 +129,44 @@ class Loader(BasicDataset):
             self._trainItem = self.trainItem
             self.trainUser = np.concatenate([self.trainUser, self.testUser])
             self.trainItem = np.concatenate([self.trainItem, self.testItem])
-            self.traindataSize += self.testDataSize
+            self.__trainsize += self.testDataSize
         elif world.TESTDATA:
-            self.traindataSize = self.testDataSize
+            self.__trainsize = self.testDataSize
             self.trainUser = self.testUser
             self.trainItem  = self.testItem
         
         self.Graph = None
+        print(f"({self.n_users} X {self.m_items})")
         print(f"{self.trainDataSize} interactions for training")
         print(f"{self.testDataSize} interactions for testing")
         print(f"{world.dataset} Sparsity : {(self.trainDataSize + self.testDataSize) / self.n_users / self.m_items}")
 
         # (users,items), bipartite graph
         self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
-                                      shape=(self.n_user, self.m_item))
+                                      shape=(self.__n_users, self.__m_items))
         self.users_D = np.array(self.UserItemNet.sum(axis=1)).squeeze()
         self.users_D[self.users_D == 0.] = 1
         self.items_D = np.array(self.UserItemNet.sum(axis=0)).squeeze()
         self.items_D[self.items_D == 0.] = 1.
         # pre-calculate
-        self._allPos = self.getUserPosItems(list(range(self.n_user)))
-        self.__testDict = self.__build_test()
+        self.__allPos = self.getUserPosItems(list(range(self.__n_users)))
+        self.__testDict = self.build_test()
         if world.ALLDATA:
             self.UserItemNet = csr_matrix((np.ones(len(self._trainUser)), (self._trainUser, self._trainItem)),
-                                      shape=(self.n_user, self.m_item))
+                                      shape=(self.__n_users, self.__m_items))
         print(f"{world.dataset} is ready to go")
 
     @property
     def n_users(self):
-        return self.n_user
+        return self.__n_users
     
     @property
     def m_items(self):
-        return self.m_item
+        return self.__m_items
     
     @property
     def trainDataSize(self):
-        return self.traindataSize
+        return self.__trainsize
     
     @property
     def testDict(self):
@@ -173,7 +174,7 @@ class Loader(BasicDataset):
 
     @property
     def allPos(self):
-        return self._allPos
+        return self.__allPos
 
     def _split_A_hat(self,A):
         A_fold = []
@@ -241,7 +242,7 @@ class Loader(BasicDataset):
                 print("don't split the matrix")
         return self.Graph
 
-    def __build_test(self):
+    def build_test(self):
         """
         return:
             dict: {user: [items]}
@@ -273,14 +274,87 @@ class Loader(BasicDataset):
             posItems.append(self.UserItemNet[user].nonzero()[1])
         return posItems
 
-    # def getUserNegItems(self, users):
-    #     negItems = []
-    #     for user in users:
-    #         negItems.append(self.allNeg[user])
-    #     return negItems
+class LoaderOne(Loader):
+    def __init__(self,
+                 config=world.config,
+                 path="../data/gowalla_one"):
+        cprint(f'loading [{path}]')
+        self.__n_users = 0
+        self.__m_items = 0
+        train_file = path + '/train.txt'
+        test_file = path + '/test.txt'        
+        trainUser, trainItem = [], []
+        testUser, testItem = [], []
+        with open(train_file) as f:
+            for line in f.readlines():
+                user, item, _ = line.strip().split()
+                trainUser.append(int(user))
+                trainItem.append(int(item))
+        with open(test_file) as f:
+            for line in f.readlines():
+                user, item, _ = line.strip().split()
+                testUser.append(int(user))
+                testItem.append(int(item))
+        self.__n_users = len(testUser)
+        self.__m_items = max(max(trainItem), max(testItem))
+        self.__trainsize = len(trainUser)
+        self.trainUser = np.array(trainUser) - 1
+        self.trainItem = np.array(trainItem) - 1
+        self.testUser = np.array(testUser) - 1
+        self.testItem = np.array(testItem) - 1
+        print(len(testUser), self.trainUser.max())
+        assert len(testUser) == max(trainUser)
+        if world.ALLDATA:
+            self._trainUser = self.trainUser
+            self._trainItem = self.trainItem
+            self.trainUser = np.concatenate([self.trainUser, self.testUser])
+            self.trainItem = np.concatenate([self.trainItem, self.testItem])
+            self.__trainsize += len(testUser)
+        elif world.TESTDATA:
+            self.__trainsize = len(testUser)
+            self.trainUser = self.testUser
+            self.trainItem = self.testItem
+        
+        self.Graph = None
+        print(f"({self.n_users} X {self.m_items})")
+        print(f"{self.trainDataSize} interactions for training")
+        print(f"{len(testUser)} interactions for testing")
+        print(f"{world.dataset} Sparsity : {(self.trainDataSize + len(testUser)) / self.n_users / self.m_items}")
+        
+        self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
+                                      shape=(self.n_users, self.m_items))
+        self.users_D = np.array(self.UserItemNet.sum(axis=1)).squeeze()
+        self.users_D[self.users_D == 0.] = 1
+        self.items_D = np.array(self.UserItemNet.sum(axis=0)).squeeze()
+        self.items_D[self.items_D == 0.] = 1.
+        # pre-calculate
+        self.__allPos = self.getUserPosItems(list(range(self.__n_users)))
+        self.__testDict = self.build_test()
+        if world.ALLDATA:
+            self.UserItemNet = csr_matrix((np.ones(len(self._trainUser)), (self._trainUser, self._trainItem)),
+                                      shape=(self.n_users, self.m_items))
+        print(f"{world.dataset} is ready to go")
+    @property
+    def n_users(self):
+        return self.__n_users
+    
+    @property
+    def m_items(self):
+        return self.__m_items
+    
+    @property
+    def trainDataSize(self):
+        return self.__trainsize
+    
+    @property
+    def testDict(self):
+        return self.__testDict
 
-
-
+    @property
+    def allPos(self):
+        return self.__allPos
+# ==========================================================================================
+# ==========================================================================================
 class LastFM(BasicDataset):
     """
     Dataset type for pytorch \n
@@ -325,14 +399,14 @@ class LastFM(BasicDataset):
         self.UserItemNet  = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem) ), shape=(self.n_users,self.m_items)) 
         
         # pre-calculate
-        self._allPos = self.getUserPosItems(list(range(self.n_users)))
+        self.__allPos = self.getUserPosItems(list(range(self.n_users)))
         self.allNeg = []
         allItems    = set(range(self.m_items))
         for i in range(self.n_users):
-            pos = set(self._allPos[i])
+            pos = set(self.__allPos[i])
             neg = allItems - pos
             self.allNeg.append(np.array(list(neg)))
-        self.__testDict = self.__build_test()
+        self.__testDict = self.build_test()
 
     @property
     def n_users(self):
@@ -352,7 +426,7 @@ class LastFM(BasicDataset):
 
     @property
     def allPos(self):
-        return self._allPos
+        return self.__allPos
 
     def getSparseGraph(self):
         if self.Graph is None:
@@ -377,7 +451,7 @@ class LastFM(BasicDataset):
             self.Graph = self.Graph.coalesce().to(world.device)
         return self.Graph
 
-    def __build_test(self):
+    def build_test(self):
         """
         return:
             dict: {user: [items]}
