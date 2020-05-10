@@ -49,4 +49,8 @@ def parse_args():
     parser.add_argument('--testdata', type=int, default=0, help='only include test set to train')
     parser.add_argument('--teacher_dim', type=int, default=50, help='teacher\'s dimension')
     parser.add_argument('--teacher_layer', type=int, default=3, help='teacher\'s layer')
+    parser.add_argument('--startepoch', type=int, default=1, help='The epoch to start distillation')
+    parser.add_argument('--T', type=float, default=1.0, help='The temperature for teacher distribution')
+    parser.add_argument('--beta', type=float, default=0.997, help='The beta')
+    parser.add_argument('--p0', type=float, default=1.0, help='The p0')
     return parser.parse_args()

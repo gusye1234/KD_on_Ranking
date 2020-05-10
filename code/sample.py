@@ -17,14 +17,14 @@ class DistillSample:
                  teacher : PairWiseModel,
                  dns_k : int,
                  method : int = 3,
-                 beta = None):
+                 beta = world.beta):
         """
             method 1 for convex combination
             method 2 for random indicator
             method 3 for simplified method 2
         """
-        self.beta = 0.999 if beta is None else beta
-        self.W = torch.Tensor([1.])
+        self.beta = beta
+        self.W = torch.Tensor([world.p0])
         self.dataset = dataset
         self.student = student
         self.teacher = teacher
@@ -36,10 +36,19 @@ class DistillSample:
         # self.Sample = self.methods[method]
         self.Sample = self.max_min
         self.dns_k = dns_k
+        self.start = False
+        self.start_epoch = world.startepoch
+        self.T = world.T
+
             
-    def UniformSample_DNS_batch(self, batch_score_size=512):
+    def UniformSample_DNS_batch(self, epoch,batch_score_size=512):
         with torch.no_grad():
-            print(">>W now:", self.W)
+            if epoch >= self.start_epoch:
+                self.start = True
+            if self.start:
+                print(">>W now:", self.W)
+            else:
+                print(">>DNS now")
             total_start = time()
             dataset = self.dataset
             dns_k = self.dns_k
