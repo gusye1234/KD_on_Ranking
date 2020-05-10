@@ -1,6 +1,7 @@
 import os
 import world
 import utils
+from pprint import pprint
 from world import cprint
 import torch
 import numpy as np
@@ -59,6 +60,7 @@ try:
             start = time.time()
             cprint("[TEST]")
             results = Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
+            pprint(results)
             print(f"[TEST TIME] {time.time() - start}")
             if earlystop.step(epoch,results):
                 print("trigger earlystop")

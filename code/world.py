@@ -52,8 +52,8 @@ seed = args.seed
 
 dataset = args.dataset
 model_name = args.model
-if dataset not in all_dataset:
-    raise NotImplementedError(f"Haven't supported {dataset} yet!, try {all_dataset}")
+# if dataset not in all_dataset:
+    # raise NotImplementedError(f"Haven't supported {dataset} yet!, try {all_dataset}")
 if model_name not in all_models:
     raise NotImplementedError(f"Haven't supported {model_name} yet!, try {all_models}")
 
@@ -73,6 +73,9 @@ startepoch = args.startepoch
 topks = eval(args.topks)
 tensorboard = args.tensorboard
 comment = args.comment
+if ONE:
+    dataset = dataset + "_one"
+    topks = [25,50,100]
 # let pandas shut up
 from warnings import simplefilter
 simplefilter(action="ignore", category=FutureWarning)

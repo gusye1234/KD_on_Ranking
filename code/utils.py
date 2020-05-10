@@ -53,13 +53,13 @@ class EarlyStop:
         self.best_epoch = 0
     
     def step(self, epoch, performance):
-        if performance['recall'] < self.best:
+        if performance['ndcg'][-1] < self.best:
             self.suffer += 1
             if self.suffer >= self.patience:
                 return True
         else:
             self.suffer = 0
-            self.best = performance['recall']
+            self.best = performance['ndcg'][-1]
             self.best_result = performance
             self.best_epoch = epoch
             torch.save(self.model.state_dict(), self.filename)
@@ -166,6 +166,34 @@ def NDCGatK_r(test_data,r,k):
     ndcg[np.isnan(ndcg)] = 0.
     return np.sum(ndcg)
 
+def NDCGatK_r_ONE(r,k):
+    """
+    Normalized Discounted Cumulative Gain
+    rel_i = 1 or 0, so 2^{rel_i} - 1 = 1 or 0
+    """
+    pred_data = r[:, :k]
+    
+    idcg = 1
+    dcg = pred_data*(1./np.log2(np.arange(2, k + 2)))
+    dcg = np.sum(dcg, axis=1)
+    ndcg = dcg
+    ndcg[np.isnan(ndcg)] = 0.
+    return np.sum(ndcg)
+
+def HRatK_ONE(r,k):
+    pred = r[:, :k]
+    return np.sum(pred)
+
+def getLabel_ONE(test_data, pred_data):
+    r = []
+    for i in range(len(test_data)):
+        groundTrue = test_data[i][0]
+        predictTopK = pred_data[i]
+        pred = (predictTopK == groundTrue)
+        pred = np.array(pred).astype("float")
+        r.append(pred)
+    return np.array(r).astype('float')
+
 def getLabel(test_data, pred_data):
     r = []
     for i in range(len(test_data)):
@@ -175,6 +203,8 @@ def getLabel(test_data, pred_data):
         pred = np.array(pred).astype("float")
         r.append(pred)
     return np.array(r).astype('float')
+
+
 
 # ====================end Metrics=============================
 # =========================================================

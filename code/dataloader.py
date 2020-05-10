@@ -219,6 +219,7 @@ class Loader(BasicDataset):
                 # adj_mat = adj_mat + sp.eye(adj_mat.shape[0])
                 
                 rowsum = np.array(adj_mat.sum(axis=1))
+                rowsum[rowsum == 0.] = 1.
                 d_inv = np.power(rowsum, -0.5).flatten()
                 d_inv[np.isinf(d_inv)] = 0.
                 d_mat = sp.diags(d_inv)
@@ -279,6 +280,8 @@ class LoaderOne(Loader):
                  config=world.config,
                  path="../data/gowalla_one"):
         cprint(f'loading [{path}]')
+        self.path = path
+        self.split = False
         self.__n_users = 0
         self.__m_items = 0
         train_file = path + '/train.txt'
@@ -298,12 +301,12 @@ class LoaderOne(Loader):
         self.__n_users = len(testUser)
         self.__m_items = max(max(trainItem), max(testItem))
         self.__trainsize = len(trainUser)
-        self.trainUser = np.array(trainUser) - 1
-        self.trainItem = np.array(trainItem) - 1
-        self.testUser = np.array(testUser) - 1
-        self.testItem = np.array(testItem) - 1
-        print(len(testUser), self.trainUser.max())
-        assert len(testUser) == max(trainUser)
+        min_index = np.min(trainUser)
+        self.trainUser = np.array(trainUser) - min_index
+        self.trainItem = np.array(trainItem) - min_index
+        self.testUser = np.array(testUser) - min_index
+        self.testItem = np.array(testItem) - min_index
+        assert len(testUser) == (max(trainUser) + 1 - min_index)
         if world.ALLDATA:
             self._trainUser = self.trainUser
             self._trainItem = self.trainItem

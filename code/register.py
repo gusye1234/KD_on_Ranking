@@ -10,7 +10,7 @@ data_path = os.path.join(
                     world.DATA_PATH, 
                     world.dataset)
 if world.ONE:
-    data_path = data_path + "_one"
+    # data_path = data_path + "_one"
     print("{leave-one-out}:", data_path)
 
 if world.dataset == 'lastfm':

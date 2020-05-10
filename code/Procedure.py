@@ -213,7 +213,17 @@ def test_one_batch(X):
     return {'recall':np.array(recall), 
             'precision':np.array(pre), 
             'ndcg':np.array(ndcg)}
-        
+    
+def test_one_batch_ONE(X):
+    sorted_items = X[0].numpy()
+    groundTrue = X[1]
+    r = utils.getLabel_ONE(groundTrue, sorted_items)
+    ndcg, hr= [], []
+    for k in world.topks:
+        ndcg.append(utils.NDCGatK_r_ONE(r, k))
+        hr.append(utils.HRatK_ONE(r, k))
+    return {'ndcg':np.array(ndcg), 
+            'hr':np.array(hr)}
             
 def Test(dataset, Recmodel, epoch, w=None, multicore=0):
     u_batch_size = world.config['test_u_batch_size']
@@ -225,9 +235,6 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
     max_K = max(world.topks)
     if multicore == 1:
         pool = multiprocessing.Pool(CORES)
-    results = {'precision': np.zeros(len(world.topks)),
-               'recall': np.zeros(len(world.topks)),
-               'ndcg': np.zeros(len(world.topks))}
     with torch.no_grad():
         users = list(testDict.keys())
         try:
@@ -261,28 +268,51 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
             groundTrue_list.append(groundTrue)
         assert total_batch == len(users_list)
         X = zip(rating_list, groundTrue_list)
-        if multicore == 1:
-            pre_results = pool.map(test_one_batch, X)
+        if world.ONE:
+            results = {'hr': np.zeros(len(world.topks)),
+               'ndcg': np.zeros(len(world.topks))}
+            if multicore == 1:
+                pre_results = pool.map(test_one_batch, X)
+            else:
+                pre_results = []
+                for x in X:
+                    pre_results.append(test_one_batch_ONE(x))
+            scale = float(u_batch_size/len(users))
+            for result in pre_results:
+                results['hr'] += result['hr']
+                results['ndcg'] += result['ndcg']
+            results['hr'] /= float(len(users))
+            results['ndcg'] /= float(len(users))
+            if world.tensorboard:
+                w.add_scalars(f'Test/HR@{world.topks}',
+                            {str(world.topks[i]): results['hr'][i] for i in range(len(world.topks))}, epoch)
+                w.add_scalars(f'Test/NDCG@{world.topks}',
+                            {str(world.topks[i]): results['ndcg'][i] for i in range(len(world.topks))}, epoch)
         else:
-            pre_results = []
-            for x in X:
-                pre_results.append(test_one_batch(x))
-        scale = float(u_batch_size/len(users))
-        for result in pre_results:
-            results['recall'] += result['recall']
-            results['precision'] += result['precision']
-            results['ndcg'] += result['ndcg']
-        results['recall'] /= float(len(users))
-        results['precision'] /= float(len(users))
-        results['ndcg'] /= float(len(users))
-        if world.tensorboard:
-            w.add_scalars(f'Test/Recall@{world.topks}',
-                          {str(world.topks[i]): results['recall'][i] for i in range(len(world.topks))}, epoch)
-            w.add_scalars(f'Test/Precision@{world.topks}',
-                          {str(world.topks[i]): results['precision'][i] for i in range(len(world.topks))}, epoch)
-            w.add_scalars(f'Test/NDCG@{world.topks}',
-                          {str(world.topks[i]): results['ndcg'][i] for i in range(len(world.topks))}, epoch)
+            results = {'precision': np.zeros(len(world.topks)),
+               'recall': np.zeros(len(world.topks)),
+               'ndcg': np.zeros(len(world.topks))}
+            if multicore == 1:
+                pre_results = pool.map(test_one_batch, X)
+            else:
+                pre_results = []
+                for x in X:
+                    pre_results.append(test_one_batch(x))
+            scale = float(u_batch_size/len(users))
+            for result in pre_results:
+                results['recall'] += result['recall']
+                results['precision'] += result['precision']
+                results['ndcg'] += result['ndcg']
+            results['recall'] /= float(len(users))
+            results['precision'] /= float(len(users))
+            results['ndcg'] /= float(len(users))
+            if world.tensorboard:
+                w.add_scalars(f'Test/Recall@{world.topks}',
+                            {str(world.topks[i]): results['recall'][i] for i in range(len(world.topks))}, epoch)
+                w.add_scalars(f'Test/Precision@{world.topks}',
+                            {str(world.topks[i]): results['precision'][i] for i in range(len(world.topks))}, epoch)
+                w.add_scalars(f'Test/NDCG@{world.topks}',
+                            {str(world.topks[i]): results['ndcg'][i] for i in range(len(world.topks))}, epoch)
         if multicore == 1:
             pool.close()
-        print(results)
         return results
