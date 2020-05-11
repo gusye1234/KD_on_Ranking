@@ -9,9 +9,9 @@ Define models here
 """
 import world
 import torch
-from dataloader import BasicDataset
-from torch import nn
 import numpy as np
+from torch import nn
+from dataloader import BasicDataset
 
 
 class BasicModel(nn.Module):    

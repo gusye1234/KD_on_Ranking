@@ -1,10 +1,10 @@
 import world
 import torch
+import multiprocessing
 import numpy as np
+from time import time
 from model import PairWiseModel
 from dataloader import BasicDataset
-from time import time
-import multiprocessing
 
 ALLPOS = None
 # ----------------------------------------------------------------------------
@@ -40,7 +40,7 @@ class DistillSample:
         self.T = world.T
 
             
-    def UniformSample_DNS_batch(self, epoch,batch_score_size=512):
+    def UniformSample_DNS_batch(self, epoch, batch_score_size=512):
         with torch.no_grad():
             if epoch >= self.start_epoch:
                 self.start = True
@@ -94,7 +94,7 @@ class DistillSample:
                         itemIndex = BinForUser[negitems]
                         negInOne = negitems[itemIndex == 0]
                         if len(negInOne) < dns_k:
-                            print("fail one")
+                            # print("fail one")
                             continue
                         else:
                             negitems = negitems[:dns_k]

@@ -7,19 +7,19 @@ Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network 
 Design training and test process
 '''
 import world
-import numpy as np
 import torch
 import utils
-from sample import UniformSample_original,DNS_sampling_neg, DNS_sampling_batch
-from sample import UniformSample_DNS_deter, UniformSample_DNS_batch
-from sample import DistillSample
+import model
 import dataloader
-from pprint import pprint
+import multiprocessing
+import numpy as np
 from time import time
 from tqdm import tqdm
-import model
+from pprint import pprint
+from sample import DistillSample
 from model import PairWiseModel, BasicModel
-import multiprocessing
+from sample import UniformSample_DNS_deter, UniformSample_DNS_batch
+from sample import UniformSample_original,DNS_sampling_neg, DNS_sampling_batch
 
 CORES = multiprocessing.cpu_count() // 2
 # ----------------------------------------------------------------------------
@@ -147,9 +147,9 @@ def Distill_train(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None)
     (S, 
      negScores, 
      negScores_teacher, 
-     sam_time) = sampler.UniformSample_DNS_batch()
+     sam_time) = sampler.UniformSample_DNS_batch(epoch)
 
-    print(f"DISTILL[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
+    print(f"[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
     users = S[:, 0].long()
     posItems = S[:, 1].long()
     negItems = S[:, 2:].long()
@@ -190,9 +190,9 @@ def Distill_train(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None)
         aver_loss += cri
         if world.tensorboard:
             w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
-    print(f"DISTILL[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
+    print(f"[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
     aver_loss = aver_loss / total_batch
-    return f"[BPR[aver loss{aver_loss:.3e}]"  
+    return f"BPR[aver loss{aver_loss:.3e}]"  
     
 # ******************************************************************************
 # ============================================================================**
@@ -282,7 +282,7 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
                 results['ndcg'] += result['ndcg']
             results['hr'] /= float(len(users))
             results['ndcg'] /= float(len(users))
-            if world.tensorboard:
+            if w:
                 w.add_scalars(f'Test/HR@{world.topks}',
                             {str(world.topks[i]): results['hr'][i] for i in range(len(world.topks))}, epoch)
                 w.add_scalars(f'Test/NDCG@{world.topks}',
@@ -305,7 +305,7 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
             results['recall'] /= float(len(users))
             results['precision'] /= float(len(users))
             results['ndcg'] /= float(len(users))
-            if world.tensorboard:
+            if w:
                 w.add_scalars(f'Test/Recall@{world.topks}',
                             {str(world.topks[i]): results['recall'][i] for i in range(len(world.topks))}, epoch)
                 w.add_scalars(f'Test/Precision@{world.topks}',

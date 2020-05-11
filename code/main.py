@@ -1,13 +1,21 @@
+'''
+Created on Mar 1, 2020
+Pytorch Implementation of LightGCN in
+Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation
+@author: Jianbai Ye (gusye@mail.ustc.edu.cn)
+
+Main program
+'''
 import os
+import time
 import world
 import utils
+import torch
+import Procedure
+import numpy as np
 from pprint import pprint
 from world import cprint
-import torch
-import numpy as np
 from tensorboardX import SummaryWriter
-import time
-import Procedure
 
 # ----------------------------------------------------------------------------
 utils.set_seed(world.seed)

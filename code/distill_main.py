@@ -1,13 +1,23 @@
+'''
+Created on Mar 1, 2020
+Pytorch Implementation of LightGCN in
+Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation
+@author: Jianbai Ye (gusye@mail.ustc.edu.cn)
+
+Distill model
+'''
 import os
+import time
 import world
 import utils
-from world import cprint
 import torch
-import numpy as np
-from tensorboardX import SummaryWriter
-import time
 import Procedure
+import numpy as np
+from world import cprint
+from pprint import pprint
 from sample import DistillSample
+from tensorboardX import SummaryWriter
+
 
 # ----------------------------------------------------------------------------
 # set seed
@@ -68,7 +78,11 @@ if world.tensorboard:
 else:
     w = None
     world.cprint("not enable tensorflowboard")
-    
+# ----------------------------------------------------------------------------
+# test teacher
+cprint("[TEST Teacher]")
+results = Procedure.Test(dataset, teacher_model, 0, None, world.config['multicore'])
+pprint(results)
 try:
     for epoch in range(world.TRAIN_epochs):
         print('======================')
