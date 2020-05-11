@@ -22,7 +22,7 @@ from model import PairWiseModel, BasicModel
 import multiprocessing
 
 CORES = multiprocessing.cpu_count() // 2
-
+# ----------------------------------------------------------------------------
 def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
     Recmodel = recommend_model
     Recmodel.train()
@@ -53,7 +53,7 @@ def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=N
             w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
     aver_loss = aver_loss / total_batch
     return f"[BPR[aver loss{aver_loss:.3e}]"
-
+# ----------------------------------------------------------------------------
 def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
     Recmodel: PairWiseModel = recommend_model
     Recmodel.train()
@@ -92,7 +92,7 @@ def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, neg_k=1, w=No
     print(f"DNS[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
     aver_loss = aver_loss / total_batch
     return f"[BPR[aver loss{aver_loss:.3e}]"
-
+# ----------------------------------------------------------------------------
 def BPR_train_DNS_batch(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
     Recmodel: PairWiseModel = recommend_model
     Recmodel.train()
@@ -138,8 +138,7 @@ def BPR_train_DNS_batch(dataset, recommend_model, loss_class, epoch, neg_k=1, w=
     print(f"DNS[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
     aver_loss = aver_loss / total_batch
     return f"[BPR[aver loss{aver_loss:.3e}]"  
-    
-
+# ----------------------------------------------------------------------------
 def Distill_train(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
     sampler : DistillSample
     bpr: utils.BPRLoss = loss_class

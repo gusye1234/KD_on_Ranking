@@ -7,8 +7,7 @@ from time import time
 import multiprocessing
 
 ALLPOS = None
-# ============================================================================
-# ============================================================================
+# ----------------------------------------------------------------------------
 # distill
 class DistillSample:
     def __init__(self,
@@ -135,8 +134,8 @@ class DistillSample:
         Items[~indicator] = teacher_neg[~indicator]
         return Items.to(world.device), [time()-start, 0, 0]
 
-# ============================================================================
-# ============================================================================
+
+# ----------------------------------------------------------------------------
 # uniform sample
 def UniformSample_original(users, dataset):
     """
@@ -173,8 +172,7 @@ def UniformSample_original(users, dataset):
                     break
             S.append([user, positem, negitem])
     return np.array(S), [time() - total_start, 0., 0.]
-# ============================================================================
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Dns sampling
 def UniformSample_DNS_deter(users, dataset, dns_k):
     """
@@ -230,8 +228,7 @@ def DNS_sampling_neg(batch_users, batch_neg, dataset, recmodel):
         negitems = negitem_vector[idx, top1]
         sam_time2 = time() - sam_time2
     return negitems, [time() - start, 0, sam_time2]
-# ============================================================================
-# ============================================================================
+# ----------------------------------------------------------------------------
 # batch rating for Dns sampling
 def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 256):
     """
@@ -303,7 +300,6 @@ def DNS_sampling_batch(batch_neg, batch_score):
     batch_list = torch.arange(0, len(batch_neg))
     _, index = torch.max(batch_score, dim=1)
     return batch_neg[batch_list, index], [time()-start, 0, 0]
-# ============================================================================
 # ============================================================================
 # multi-core sampling, not yet
 def UniformSample_DNS_neg_multi(users, dataset, dns_k):

@@ -65,7 +65,7 @@ class BasicDataset(Dataset):
             |R^T, I|
         """
         raise NotImplementedError
-
+# ----------------------------------------------------------------------------
 class Loader(BasicDataset):
     """
     Dataset type for pytorch \n
@@ -274,7 +274,7 @@ class Loader(BasicDataset):
         for user in users:
             posItems.append(self.UserItemNet[user].nonzero()[1])
         return posItems
-
+# ----------------------------------------------------------------------------
 class LoaderOne(Loader):
     def __init__(self,
                  config=world.config,
@@ -356,8 +356,9 @@ class LoaderOne(Loader):
     @property
     def allPos(self):
         return self.__allPos
-# ==========================================================================================
-# ==========================================================================================
+
+# ----------------------------------------------------------------------------
+# this dataset is for debugging
 class LastFM(BasicDataset):
     """
     Dataset type for pytorch \n

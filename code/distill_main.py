@@ -9,11 +9,11 @@ import time
 import Procedure
 from sample import DistillSample
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # set seed
 utils.set_seed(world.seed)
 print(f"[SEED:{world.seed}]")
-# ============================================================================
+# ----------------------------------------------------------------------------
 # init model
 import register
 from register import dataset
@@ -32,14 +32,14 @@ sampler = DistillSample(dataset,
                         student_model,
                         teacher_model,
                         world.DNS_K)
-# ============================================================================
+# ----------------------------------------------------------------------------
 # get names
 file = utils.getFileName(world.model_name, world.dataset, world.config['latent_dim_rec'], layers=world.config['lightGCN_n_layers'])
 weight_file = os.path.join(world.FILE_PATH, file)
 print(f"load and save student to {weight_file}")
 teacher_file = utils.getFileName(world.model_name, world.dataset, world.config['teacher_dim'], layers=world.config['teacher_layer'])
 teacher_weight_file = os.path.join(world.FILE_PATH, teacher_file)
-# ============================================================================
+# ----------------------------------------------------------------------------
 # loading teacher
 print('-------------------------')
 world.cprint("loaded teacher weights from") 
@@ -51,17 +51,20 @@ except RuntimeError:
     teacher_model.load_state_dict(torch.load(teacher_weight_file, map_location=torch.device('cpu')))
 except FileNotFoundError:
     raise FileNotFoundError(f"{teacher_weight_file} NOT exist!!!")
-# ============================================================================
+# ----------------------------------------------------------------------------
 # migrate
 earlystop = utils.EarlyStop(patience=10, model=student_model, filename=weight_file)
 Neg_k = 1
 student_model = student_model.to(world.device)
 teacher_model = teacher_model.to(world.device)
-# ============================================================================
-# ============================================================================
+# ----------------------------------------------------------------------------
 # init tensorboard
 if world.tensorboard:
-    w : SummaryWriter = SummaryWriter( os.path.join(world.BOARD_PATH,"distill" + time.strftime("%m-%d-%Hh") + world.method + file + '_' + world.comment))
+    w : SummaryWriter = SummaryWriter(
+        os.path.join(
+            world.BOARD_PATH,time.strftime("%m-%d-%Hh-%Mm-") + f"{world.method}-{str(world.DNS_K)}-{file.split('.')[0]}-{world.comment}-DISTILL"
+            )
+        )
 else:
     w = None
     world.cprint("not enable tensorflowboard")
