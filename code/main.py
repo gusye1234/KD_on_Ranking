@@ -39,7 +39,7 @@ if world.LOAD:
     except FileNotFoundError:
         print(f"{weight_file} not exists, start from beginning")
 # ----------------------------------------------------------------------------
-earlystop = utils.EarlyStop(patience=10, model=Recmodel, filename=weight_file)
+earlystop = utils.EarlyStop(patience=30, model=Recmodel, filename=weight_file)
 Neg_k = 1
 Recmodel = Recmodel.to(world.device)
 # ----------------------------------------------------------------------------

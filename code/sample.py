@@ -1,6 +1,7 @@
 import world
 import torch
 import multiprocessing
+from torch.nn import Softmax
 import numpy as np
 from time import time
 from model import PairWiseModel
@@ -38,8 +39,8 @@ class DistillSample:
         self.start = False
         self.start_epoch = world.startepoch
         self.T = world.T
+        self.soft = Softmax(dim=1)
 
-            
     def UniformSample_DNS_batch(self, epoch, batch_score_size=512):
         with torch.no_grad():
             if epoch >= self.start_epoch:
@@ -110,29 +111,53 @@ class DistillSample:
                     S.append(add_pair)
                 sample_time2 += time() - start2
         # ===========================
-        self.W *= self.beta
-        return torch.Tensor(S), torch.stack(NEG_scores),torch.stack(NEG_scores_teacher),[time() - total_start, sample_time1, sample_time2]        
+        if self.start:
+            self.W *= self.beta
+        return torch.Tensor(S), torch.stack(NEG_scores), torch.stack(NEG_scores_teacher),[time() - total_start, sample_time1, sample_time2]        
 
     def convex_combine(self, batch_neg, student_score, teacher_score):
         pass
     
     def random_indicator(self, batch_neg, student_score, teacher_score):
-        pass
+        start = time()
+        batch_list = torch.arange(0, len(batch_neg))
+        
+        if self.start:
+            _, student_max = torch.max(student_score, dim=1)
+            teacher_p = self.soft(-teacher_score/self.T)
+            teacher_index = torch.multinomial(teacher_p, 1).squeeze()
+            student_neg = batch_neg[batch_list, student_max]
+            teacher_neg = batch_neg[batch_list, teacher_index]
+            Items = torch.zeros((len(batch_neg), )).to(world.device).long()
+            P_bern = torch.ones((len(batch_neg), ))*self.W
+            indicator = torch.bernoulli(P_bern).bool()
+            Items[indicator] = student_neg[indicator]
+            Items[~indicator] = teacher_neg[~indicator]
+            return Items, [time()-start, 0, 0]
+        else:
+            _, student_max = torch.max(student_score, dim=1)
+            student_neg = batch_neg[batch_list, student_max]
+            return student_neg, [time()-start, 0, 0]
     
     def max_min(self, batch_neg, student_score, teacher_score):
         start = time()
         batch_list = torch.arange(0, len(batch_neg))
-        
-        _, student_max = torch.max(student_score, dim=1)
-        _, teacher_min = torch.min(teacher_score, dim=1)
-        student_neg = batch_neg[batch_list, student_max]
-        teacher_neg = batch_neg[batch_list, teacher_min]
-        Items = torch.zeros((len(batch_neg), )).long()
-        P_bern = torch.ones((len(batch_neg), ))*self.W
-        indicator = torch.bernoulli(P_bern).bool()
-        Items[indicator] = student_neg[indicator]
-        Items[~indicator] = teacher_neg[~indicator]
-        return Items.to(world.device), [time()-start, 0, 0]
+
+        if self.start:
+            _, student_max = torch.max(student_score, dim=1)
+            _, teacher_min = torch.min(teacher_score, dim=1)
+            student_neg = batch_neg[batch_list, student_max]
+            teacher_neg = batch_neg[batch_list, teacher_min]
+            Items = torch.zeros((len(batch_neg), )).to(world.device).long()
+            P_bern = torch.ones((len(batch_neg), ))*self.W
+            indicator = torch.bernoulli(P_bern).bool()
+            Items[indicator] = student_neg[indicator]
+            Items[~indicator] = teacher_neg[~indicator]
+            return Items, [time()-start, 0, 0]
+        else:
+            _, student_max = torch.max(student_score, dim=1)
+            student_neg = batch_neg[batch_list, student_max]
+            return student_neg, [time()-start, 0, 0]
 
 
 # ----------------------------------------------------------------------------
