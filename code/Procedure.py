@@ -236,10 +236,6 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
         pool = multiprocessing.Pool(CORES)
     with torch.no_grad():
         users = list(testDict.keys())
-        try:
-            assert u_batch_size <= len(users) / 10
-        except AssertionError:
-            print(f"test_u_batch_size is too big for this dataset, try a small one {len(users) // 10}")
         users_list = []
         rating_list = []
         groundTrue_list = []

@@ -46,6 +46,7 @@ sampler = DistillSample(dataset,
 # get names
 file = utils.getFileName(world.model_name, world.dataset, world.config['latent_dim_rec'], layers=world.config['lightGCN_n_layers'])
 weight_file = os.path.join(world.FILE_PATH, file)
+print('-------------------------')
 print(f"load and save student to {weight_file}")
 teacher_file = utils.getFileName(world.model_name, world.dataset, world.config['teacher_dim'], layers=world.config['teacher_layer'])
 teacher_weight_file = os.path.join(world.FILE_PATH, teacher_file)
@@ -63,7 +64,7 @@ except FileNotFoundError:
     raise FileNotFoundError(f"{teacher_weight_file} NOT exist!!!")
 # ----------------------------------------------------------------------------
 # migrate
-earlystop = utils.EarlyStop(patience=10, model=student_model, filename=weight_file)
+earlystop = utils.EarlyStop(patience=30, model=student_model, filename=weight_file)
 Neg_k = 1
 student_model = student_model.to(world.device)
 teacher_model = teacher_model.to(world.device)
