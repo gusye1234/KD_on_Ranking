@@ -64,7 +64,7 @@ except FileNotFoundError:
     raise FileNotFoundError(f"{teacher_weight_file} NOT exist!!!")
 # ----------------------------------------------------------------------------
 # migrate
-earlystop = utils.EarlyStop(patience=30, model=student_model, filename=weight_file)
+earlystop = utils.EarlyStop(patience=60, model=student_model, filename=weight_file)
 Neg_k = 1
 student_model = student_model.to(world.device)
 teacher_model = teacher_model.to(world.device)

@@ -24,7 +24,7 @@ class BasicModel(nn.Module):
 class PairWiseModel(BasicModel):
     def __init__(self):
         super(PairWiseModel, self).__init__()
-    def bpr_loss(self, users, pos, neg):
+    def bpr_loss(self, users, pos, neg, weights=None):
         """
         Parameters:
             users: users list 
@@ -34,7 +34,8 @@ class PairWiseModel(BasicModel):
             (log-loss, l2-loss)
         """
         raise NotImplementedError
-    
+
+
 class PureMF(BasicModel):
     def __init__(self, 
                  config:dict, 
@@ -184,7 +185,7 @@ class LightGCN(BasicModel):
         neg_emb_ego = self.embedding_item(neg_items)
         return users_emb, pos_emb, neg_emb, users_emb_ego, pos_emb_ego, neg_emb_ego
     
-    def bpr_loss(self, users, pos, neg):
+    def bpr_loss(self, users, pos, neg, weights=None):
         (users_emb, pos_emb, neg_emb, 
         userEmb0,  posEmb0, negEmb0) = self.getEmbedding(users.long(), pos.long(), neg.long())
         reg_loss = (1/2)*(userEmb0.norm(2).pow(2) + 
@@ -195,7 +196,10 @@ class LightGCN(BasicModel):
         neg_scores = torch.mul(users_emb, neg_emb)
         neg_scores = torch.sum(neg_scores, dim=1)
         
-        loss = torch.mean(torch.nn.functional.softplus(neg_scores - pos_scores))
+        if weights is not None:
+            loss = torch.mean(torch.nn.functional.softplus(neg_scores - pos_scores) * weights)
+        else:
+            loss = torch.mean(torch.nn.functional.softplus(neg_scores - pos_scores))
         
         return loss, reg_loss
        
