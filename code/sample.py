@@ -44,6 +44,9 @@ class DistillSample:
         self.start_epoch = world.startepoch
         self.T = world.T
         self.soft = Softmax(dim=1)
+        self.scale = 2
+        self.t1 = 1
+        self.t2 = 2.5
 
     def UniformSample_DNS_batch(self, epoch, batch_score_size=512):
         with torch.no_grad():
@@ -79,7 +82,7 @@ class DistillSample:
                     left_limit = user+batch_score_size
                     batch_list = torch.arange(user, left_limit) if left_limit <= dataset.n_users else torch.arange(user, dataset.n_users)
                     BATCH_SCORE = self.student.getUsersRating(batch_list)
-                    BATCH_SCORE_teacher = self.teacher.getUsersRating(batch_list)
+                    BATCH_SCORE_teacher = self.teacher.getUsersRating(batch_list, t1=self.t1, t2=self.t2)
                     now = 0
                 sample_time1 += time()-start1
                 start2 = time()
@@ -124,21 +127,24 @@ class DistillSample:
         pass
     # ----------------------------------------------------------------------------
     # method 4
-    def weight_pair(self, batch_neg, student_score, teacher_score):
-        start = time()
-        if self.start:
-            batch_list = torch.arange(0, len(batch_neg))
-            _, student_max = torch.max(student_score, dim=1)
-            weights = teacher_score[batch_list, student_max]
-            weights = (1-weights)
-            Items = batch_neg[batch_list, student_max]
-            print(weights[:10])
-            return Items, weights, [time()-start, 0, 0]
-        else:
-            return self.DNS(batch_neg, student_score), None,[time()-start, 0, 0]
+    def weight_pair(self, batch_neg, batch_pos, batch_users, student_score, teacher_score):
+        with torch.no_grad():
+            start = time()
+            if self.start:
+                batch_list = torch.arange(0, len(batch_neg))
+                _, student_max = torch.max(student_score, dim=1)
+                # weights = teacher_score[batch_list, student_max]
+                # weights = (1-weights)
+                Items = batch_neg[batch_list, student_max]
+                weights = self.teacher.pair_score(batch_users, batch_pos, Items)
+                weights = self.scale*weights
+                print(torch.mean(weights))
+                return Items, weights, [time()-start, 0, 0]
+            else:
+                return self.DNS(batch_neg, student_score), None,[time()-start, 0, 0]
     # ----------------------------------------------------------------------------
     # method 2
-    def random_indicator(self, batch_neg, student_score, teacher_score):
+    def random_indicator(self, batch_neg, batch_pos, batch_users, student_score, teacher_score):
         start = time()
         if self.start:
             batch_list = torch.arange(0, len(batch_neg))
@@ -157,7 +163,7 @@ class DistillSample:
             return self.DNS(batch_neg, student_score), None,[time()-start, 0, 0]
     # ----------------------------------------------------------------------------
     # method 3
-    def max_min(self, batch_neg, student_score, teacher_score):
+    def max_min(self, batch_neg, batch_pos, batch_users, student_score, teacher_score):
         start = time()
         if self.start:
             batch_list = torch.arange(0, len(batch_neg))

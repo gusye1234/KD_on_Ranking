@@ -53,7 +53,8 @@ if world.tensorboard:
 else:
     w = None
     world.cprint("not enable tensorflowboard")
-    
+# ----------------------------------------------------------------------------
+# start training
 try:
     for epoch in range(world.TRAIN_epochs):
         print('======================')

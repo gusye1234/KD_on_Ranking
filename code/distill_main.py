@@ -33,7 +33,7 @@ student_model = register.MODELS[world.model_name](world.config, dataset)
 
 teacher_config = utils.getTeacherConfig(world.config)
 world.cprint('teacher')
-teacher_model = register.MODELS[world.model_name](teacher_config, dataset)
+teacher_model = register.MODELS[world.model_name](teacher_config, dataset, fix=True)
 teacher_model.eval()
 
 procedure = register.DISTILL_TRAIN['experiment']
@@ -63,7 +63,7 @@ except RuntimeError:
 except FileNotFoundError:
     raise FileNotFoundError(f"{teacher_weight_file} NOT exist!!!")
 # ----------------------------------------------------------------------------
-# migrate
+# migrate and stuffs
 earlystop = utils.EarlyStop(patience=60, model=student_model, filename=weight_file)
 Neg_k = 1
 student_model = student_model.to(world.device)
@@ -84,6 +84,8 @@ else:
 cprint("[TEST Teacher]")
 results = Procedure.Test(dataset, teacher_model, 0, None, world.config['multicore'])
 pprint(results)
+# ----------------------------------------------------------------------------
+# start training
 try:
     for epoch in range(world.TRAIN_epochs):
         print('======================')
@@ -97,6 +99,7 @@ try:
             start = time.time()
             cprint("[TEST]")
             results = Procedure.Test(dataset, student_model, epoch, w, world.config['multicore'])
+            pprint(results)
             print(f"[TEST TIME] {time.time() - start}")
             if earlystop.step(epoch,results):
                 print("trigger earlystop")

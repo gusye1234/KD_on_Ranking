@@ -183,7 +183,7 @@ def Distill_train(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None)
                                                               batch_size=world.config['bpr_batch_size'])):
         # batch_neg, sam_time = DNS_sampling_neg(batch_users, batch_neg, dataset, Recmodel)
         # batch_neg, sam_time = DNS_sampling_batch(batch_neg, batch_scores)
-        batch_neg, weights, samtime= sampler.Sample(batch_neg, batch_scores, batch_scores_teacher)
+        batch_neg, weights, samtime= sampler.Sample(batch_neg, batch_pos, batch_users, batch_scores, batch_scores_teacher)
         cri = bpr.stageOne(batch_users, batch_pos, batch_neg, weights=weights)
         DNS_time1 += sam_time[0]
         DNS_time2 += sam_time[2]

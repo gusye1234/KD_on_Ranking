@@ -51,14 +51,21 @@ class EarlyStop:
         self.best = 0
         self.best_result = None
         self.best_epoch = 0
+        self.mean = 0
+        self.sofar = 1
     
     def step(self, epoch, performance):
         if performance['ndcg'][-1] < self.best:
             self.suffer += 1
             if self.suffer >= self.patience:
                 return True
+            self.sofar += 1
+            self.mean = self.mean*(self.sofar - 1)/self.sofar + performance['ndcg'][-1]/self.sofar
+            print(f"no good so far {self.suffer}:{self.mean}")
         else:
             self.suffer = 0
+            self.mean = performance['ndcg'][-1]
+            self.sofar = 1
             self.best = performance['ndcg'][-1]
             self.best_result = performance
             self.best_epoch = epoch

@@ -34,7 +34,16 @@ class PairWiseModel(BasicModel):
             (log-loss, l2-loss)
         """
         raise NotImplementedError
-
+    def pair_score(self, users, pos, neg):
+        """
+        Parameters:
+            users: users list 
+            pos: positive items for corresponding users
+            neg: negative items for corresponding users
+        Return:
+            Sigmoid(Score_pos - Score_neg)
+        """
+        raise NotImplementedError
 
 class PureMF(BasicModel):
     def __init__(self, 
@@ -84,10 +93,12 @@ class PureMF(BasicModel):
 class LightGCN(BasicModel):
     def __init__(self, 
                  config:dict, 
-                 dataset:BasicDataset):
+                 dataset:BasicDataset,
+                 fix:bool = False):
         super(LightGCN, self).__init__()
         self.config = config
         self.dataset : dataloader.BasicDataset = dataset
+        self.fix = fix
         self.__init_weight()
 
     def __init_weight(self):
@@ -138,6 +149,12 @@ class LightGCN(BasicModel):
         """
         propagate methods for lightGCN
         """       
+        if self.fix:
+            try:
+                return self.all_users, self.all_items
+            except:
+                print("teacher only comptue once")
+                pass
         users_emb = self.embedding_user.weight
         items_emb = self.embedding_item.weight
         all_emb = torch.cat([users_emb, items_emb])
@@ -166,13 +183,20 @@ class LightGCN(BasicModel):
         #print(embs.size())
         light_out = torch.mean(embs, dim=1)
         users, items = torch.split(light_out, [self.num_users, self.num_items])
+        self.all_users = users
+        self.all_items = items
         return users, items
     
-    def getUsersRating(self, users):
+    def getUsersRating(self, users, t1=None, t2=None):
         all_users, all_items = self.computer()
         users_emb = all_users[users.long()]
         items_emb = all_items
-        rating = self.f(torch.matmul(users_emb, items_emb.t()))
+        if t1 is not None:
+            rating = self.f(
+                    (torch.matmul(users_emb, items_emb.t()) + t1)/t2
+                )
+        else:
+            rating = self.f(torch.matmul(users_emb, items_emb.t()))
         return rating
     
     def getEmbedding(self, users, pos_items, neg_items):
@@ -202,6 +226,16 @@ class LightGCN(BasicModel):
             loss = torch.mean(torch.nn.functional.softplus(neg_scores - pos_scores))
         
         return loss, reg_loss
+    
+    def pair_score(self, users, pos, neg):
+        (users_emb, pos_emb, neg_emb, 
+        userEmb0,  posEmb0, negEmb0) = self.getEmbedding(users.long(), pos.long(), neg.long())
+        pos_scores = torch.mul(users_emb, pos_emb)
+        pos_scores = torch.sum(pos_scores, dim=1)
+        neg_scores = torch.mul(users_emb, neg_emb)
+        neg_scores = torch.sum(neg_scores, dim=1)
+
+        return self.f(pos_scores - neg_scores)
        
     def forward(self, users, items):
         # compute embedding
