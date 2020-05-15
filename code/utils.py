@@ -55,7 +55,7 @@ class EarlyStop:
         self.sofar = 1
     
     def step(self, epoch, performance):
-        if performance['ndcg'][-1] < self.best:
+        if performance['ndcg'][-1] < self.mean:
             self.suffer += 1
             if self.suffer >= self.patience:
                 return True
