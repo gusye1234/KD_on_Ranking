@@ -67,11 +67,16 @@ class DistillSample:
             NEG_scores_teacher = []
             sample_time1 = 0.
             sample_time2 = 0.
+            sample_time3 = 0.
+            sample_time4 = 0.
             BinForUser = np.zeros(shape = (dataset.m_items, )).astype("int")
-            sample_shape = int(dns_k*1.5)+1
+            # sample_shape = int(dns_k*1.5)+1
             BATCH_SCORE = None
             BATCH_SCORE_teacher = None
             now = 0
+            NEG = np.zeros((per_user_num*dataset.n_users, dns_k))
+            STUDENT = torch.zeros((per_user_num*dataset.n_users, dns_k))
+            TEACHER = torch.zeros((per_user_num*dataset.n_users, dns_k))
             for user in range(dataset.n_users):
                 start1 = time()
                 if now >= batch_score_size:
@@ -81,46 +86,54 @@ class DistillSample:
                 if BATCH_SCORE is None:
                     left_limit = user+batch_score_size
                     batch_list = torch.arange(user, left_limit) if left_limit <= dataset.n_users else torch.arange(user, dataset.n_users)
-                    BATCH_SCORE = self.student.getUsersRating(batch_list)
-                    BATCH_SCORE_teacher = self.teacher.getUsersRating(batch_list, t1=self.t1, t2=self.t2)
+                    BATCH_SCORE = self.student.getUsersRating(batch_list).cpu()
+                    print(type(BATCH_SCORE), BATCH_SCORE.size())
+                    # BATCH_SCORE_teacher = self.teacher.getUsersRating(batch_list, t1=self.t1, t2=self.t2)
                     now = 0
                 sample_time1 += time()-start1
+
                 start2 = time()
                 scoreForuser = BATCH_SCORE[now]
-                scoreForuser_teacher = BATCH_SCORE_teacher[now] 
+                # scoreForuser_teacher = BATCH_SCORE_teacher[now] 
+                scoreForuser_teacher = BATCH_SCORE[now]
                 now += 1
                 posForUser = allPos[user]
                 if len(posForUser) == 0:
                     continue
                 BinForUser[:] = 0
                 BinForUser[posForUser] = 1
+                NEGforUser = BinForUser.nonzero()[0]
+                
                 for i in range(per_user_num):
+                    start3 = time()
                     posindex = np.random.randint(0, len(posForUser))
                     positem = posForUser[posindex]
-                    while True:
-                        negitems = np.random.randint(0, dataset.m_items, size=(sample_shape, ))
-                        itemIndex = BinForUser[negitems]
-                        negInOne = negitems[itemIndex == 0]
-                        if len(negInOne) < dns_k:
-                            # print("fail one")
-                            continue
-                        else:
-                            negitems = negitems[:dns_k]
-                            break
-                        # if np.sum(BinForUser[negitems]) > 0:
-                        #     continue
-                        # else:
-                        #     break
-                    add_pair = [user, positem]
-                    add_pair.extend(negitems)
-                    NEG_scores.append(scoreForuser[negitems])
-                    NEG_scores_teacher.append(scoreForuser_teacher[negitems])
+                    negindex = np.random.randint(0, len(NEGforUser), size=(dns_k, ))
+                    negitems = NEGforUser[negindex]
+                    # while True:
+                    #     negitems = np.random.randint(0, dataset.m_items, size=(dns_k, ))
+                    #     itemIndex = BinForUser[negitems]
+                    #     if np.sum(itemIndex) > 0:
+                    #         continue
+                    #     else:
+                    #         break
+                    add_pair = (user, positem)
+                    # NEG_scores.append(scoreForuser[negitems])
+                    STUDENT[user*per_user_num + i, :] = scoreForuser[negitems]
+                    TEACHER[user*per_user_num + i, :] = scoreForuser_teacher[negitems]
+                    # NEG_scores_teacher.append(scoreForuser_teacher[negitems])
+
+                    sample_time3 += time()-start3
+                    start4 = time()
                     S.append(add_pair)
+                    NEG[user*per_user_num + i, :] = negitems
+                    sample_time4 += time() - start4
                 sample_time2 += time() - start2
         # ===========================
         if self.start:
             self.W *= self.beta
-        return torch.Tensor(S), torch.stack(NEG_scores), torch.stack(NEG_scores_teacher),[time() - total_start, sample_time1, sample_time2]        
+        # return torch.Tensor(S), torch.from_numpy(NEG), torch.stack(NEG_scores), torch.stack(NEG_scores_teacher),[time() - total_start, sample_time1, sample_time2, sample_time3, sample_time4]        
+        return torch.Tensor(S), torch.from_numpy(NEG), STUDENT, TEACHER,[time() - total_start, sample_time1, sample_time2, sample_time3, sample_time4]        
     # ----------------------------------------------------------------------------
     # method 1
     def convex_combine(self, batch_neg, student_score, teacher_score):
@@ -138,7 +151,7 @@ class DistillSample:
                 Items = batch_neg[batch_list, student_max]
                 weights = self.teacher.pair_score(batch_users, batch_pos, Items)
                 weights = self.scale*weights
-                print(torch.mean(weights))
+                # print(torch.mean(weights))s
                 return Items, weights, [time()-start, 0, 0]
             else:
                 return self.DNS(batch_neg, student_score), None,[time()-start, 0, 0]

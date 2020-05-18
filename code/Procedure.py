@@ -20,6 +20,9 @@ from sample import DistillSample
 from model import PairWiseModel, BasicModel
 from sample import UniformSample_DNS_deter, UniformSample_DNS_batch
 from sample import UniformSample_original,DNS_sampling_neg, DNS_sampling_batch
+from utils import time2str
+
+item_count = None
 
 CORES = multiprocessing.cpu_count() // 2
 # ----------------------------------------------------------------------------
@@ -140,19 +143,24 @@ def BPR_train_DNS_batch(dataset, recommend_model, loss_class, epoch, neg_k=1, w=
     return f"[BPR[aver loss{aver_loss:.3e}]"  
 # ----------------------------------------------------------------------------
 def Distill_train(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
+    global item_count
     sampler : DistillSample
     bpr: utils.BPRLoss = loss_class
     student.train()
+    if item_count is None:
+        item_count = torch.zeros(dataset.m_items)
     # S,sam_time = UniformSample_DNS_deter(allusers, dataset, world.DNS_K)
-    (S, 
+    (S,
+     negItems,
      negScores, 
      negScores_teacher, 
      sam_time) = sampler.UniformSample_DNS_batch(epoch)
 
-    print(f"[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
+    print(f"[pre-sample][{sam_time[0]:.1f}={time2str(sam_time[1:])}]")
     users = S[:, 0].long()
     posItems = S[:, 1].long()
-    negItems = S[:, 2:].long()
+    # negItems = S[:, 2:].long()
+    negItems = negItems.long()
     print(negItems.shape, negScores.shape, negScores_teacher.shape)
     
     users = users.to(world.device)
@@ -183,17 +191,18 @@ def Distill_train(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None)
                                                               batch_size=world.config['bpr_batch_size'])):
         # batch_neg, sam_time = DNS_sampling_neg(batch_users, batch_neg, dataset, Recmodel)
         # batch_neg, sam_time = DNS_sampling_batch(batch_neg, batch_scores)
-        batch_neg, weights, samtime= sampler.Sample(batch_neg, batch_pos, batch_users, batch_scores, batch_scores_teacher)
+        batch_neg, weights, samtime= sampler.Sample(batch_neg, batch_pos,batch_users,batch_scores, batch_scores_teacher)
         cri = bpr.stageOne(batch_users, batch_pos, batch_neg, weights=weights)
+        item_count[batch_neg] += 1
         DNS_time1 += sam_time[0]
         DNS_time2 += sam_time[2]
         aver_loss += cri
         if world.tensorboard:
             w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
+    np.savetxt("count.txt",item_count.numpy())
     print(f"[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
     aver_loss = aver_loss / total_batch
-    return f"BPR[aver loss{aver_loss:.3e}]"  
-    
+    return f"BPR[aver loss{aver_loss:.3e}]"      
 # ******************************************************************************
 # ============================================================================**
 # ============================================================================**

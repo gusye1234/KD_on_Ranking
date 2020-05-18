@@ -126,6 +126,13 @@ def getTeacherConfig(config : dict):
     teacher_dict['lightGCN_n_layers'] = teacher_dict['teacher_layer']
     teacher_dict['latent_dim_rec'] = teacher_dict['teacher_dim']
     return teacher_dict
+
+def time2str(sam_time : list):
+    sam_copy = ""
+    for t in sam_time:
+        sam_copy += '+' + f"{t:.2f}"
+    return sam_copy[1:]
+    
 # ============================================================================
 # ============================================================================
 # metrics
