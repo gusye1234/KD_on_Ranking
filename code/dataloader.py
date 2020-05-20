@@ -266,7 +266,7 @@ class Loader(BasicDataset):
                 M = M.tolil()
                 I = sp.eye(self.n_users).tolil()
                 M[:self.n_users, :self.n_users] = I
-                M[self.n_users:, self.n_users] = item_model
+                M[self.n_users:, self.n_users:] = item_model
                 M = M.tocsr()
                 
                 norm_adj = (1-a)*pre_adj_mat + a*M

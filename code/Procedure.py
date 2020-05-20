@@ -102,12 +102,12 @@ def BPR_train_DNS_batch(dataset, recommend_model, loss_class, epoch, neg_k=1, w=
     bpr: utils.BPRLoss = loss_class
     allusers = list(range(dataset.n_users))
     # S,sam_time = UniformSample_DNS_deter(allusers, dataset, world.DNS_K)
-    S, NEG_scores, sam_time = UniformSample_DNS_batch(allusers, dataset, Recmodel, world.DNS_K)
+    S, negItems,NEG_scores, sam_time = UniformSample_DNS_batch(allusers, dataset, Recmodel, world.DNS_K)
 
     print(f"DNS[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
     users = S[:, 0].long()
     posItems = S[:, 1].long()
-    negItems = S[:, 2:].long()
+    negItems = negItems.long()
     negScores = NEG_scores.float()
     print(negItems.shape, negScores.shape)
     

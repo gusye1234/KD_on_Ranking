@@ -102,21 +102,13 @@ class DistillSample:
                     continue
                 BinForUser[:] = 0
                 BinForUser[posForUser] = 1
-                NEGforUser = BinForUser.nonzero()[0]
-                
+                NEGforUser = np.where(BinForUser == 0)[0]
                 for i in range(per_user_num):
                     start3 = time()
                     posindex = np.random.randint(0, len(posForUser))
                     positem = posForUser[posindex]
                     negindex = np.random.randint(0, len(NEGforUser), size=(dns_k, ))
                     negitems = NEGforUser[negindex]
-                    # while True:
-                    #     negitems = np.random.randint(0, dataset.m_items, size=(dns_k, ))
-                    #     itemIndex = BinForUser[negitems]
-                    #     if np.sum(itemIndex) > 0:
-                    #         continue
-                    #     else:
-                    #         break
                     add_pair = (user, positem)
                     # NEG_scores.append(scoreForuser[negitems])
                     STUDENT[user*per_user_num + i, :] = scoreForuser[negitems]
@@ -310,12 +302,13 @@ def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 256
         per_user_num = user_num // dataset.n_users + 1
         allPos = dataset.allPos
         S = []
-        NEG_scores = []
         sample_time1 = 0.
         sample_time2 = 0.
         BinForUser = np.zeros(shape = (dataset.m_items, )).astype("int")
         sample_shape = int(dns_k*1.5)+1
         BATCH_SCORE = None
+        NEG = np.zeros((per_user_num*dataset.n_users, dns_k))
+        SCORES = torch.zeros((per_user_num*dataset.n_users, dns_k))
         now = 0
         for user in range(dataset.n_users):
             start1 = time()
@@ -325,7 +318,7 @@ def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 256
             if BATCH_SCORE is None:
                 left_limit = user+batch_score_size
                 batch_list = torch.arange(user, left_limit) if left_limit <= dataset.n_users else torch.arange(user, dataset.n_users)
-                BATCH_SCORE = model.getUsersRating(batch_list)
+                BATCH_SCORE = model.getUsersRating(batch_list).cpu()
                 now = 0
             sample_time1 += time()-start1
             start2 = time()
@@ -336,29 +329,19 @@ def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 256
                 continue
             BinForUser[:] = 0
             BinForUser[posForUser] = 1
+            NEGforUser = np.where(BinForUser == 0)[0]
             for i in range(per_user_num):
                 posindex = np.random.randint(0, len(posForUser))
                 positem = posForUser[posindex]
-                while True:
-                    negitems = np.random.randint(0, dataset.m_items, size=(sample_shape, ))
-                    itemIndex = BinForUser[negitems]
-                    negInOne = negitems[itemIndex == 0]
-                    if len(negInOne) < dns_k:
-                        print("fail one")
-                        continue
-                    else:
-                        negitems = negitems[:dns_k]
-                        break
-                    # if np.sum(BinForUser[negitems]) > 0:
-                    #     continue
-                    # else:
-                    #     break
+                negindex = np.random.randint(0, len(NEGforUser), size=(dns_k, ))
+                negitems = NEGforUser[negindex]
                 add_pair = [user, positem]
-                add_pair.extend(negitems)
-                NEG_scores.append(scoreForuser[negitems])
+                NEG[user*per_user_num + i, :] = negitems
+                SCORES[user*per_user_num + i, :] = scoreForuser[negitems]
                 S.append(add_pair)
             sample_time2 += time() - start2
-    return torch.Tensor(S), torch.stack(NEG_scores),[time() - total_start, sample_time1, sample_time2]
+    return torch.Tensor(S), torch.from_numpy(NEG),SCORES,[time() - total_start, sample_time1, sample_time2]
+otal_start, sample_time1, sample_time2]
 
 def DNS_sampling_batch(batch_neg, batch_score):
     start = time()
