@@ -44,7 +44,7 @@ class DistillSample:
         self.start_epoch = world.startepoch
         self.T = world.T
         self.soft = Softmax(dim=1)
-        self.scale = 2
+        self.scale = 1
         self.t1 = 1
         self.t2 = 2.5
 
@@ -233,7 +233,7 @@ def UniformSample_original(users, dataset):
 # Dns sampling
 def UniformSample_DNS_deter(users, dataset, dns_k):
     """
-    the original impliment of BPR Sampling in LightGCN
+    the original implement of BPR Sampling in LightGCN
     NOTE: we can sample a whole epoch data at one time
     :return:
         np.array
@@ -289,7 +289,7 @@ def DNS_sampling_neg(batch_users, batch_neg, dataset, recmodel):
 # batch rating for Dns sampling
 def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 256):
     """
-    the original impliment of BPR Sampling in LightGCN
+    the original implement of BPR Sampling in LightGCN
     NOTE: we can sample a whole epoch data at one time
     :return:
         np.array
@@ -341,7 +341,6 @@ def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 256
                 S.append(add_pair)
             sample_time2 += time() - start2
     return torch.Tensor(S), torch.from_numpy(NEG),SCORES,[time() - total_start, sample_time1, sample_time2]
-otal_start, sample_time1, sample_time2]
 
 def DNS_sampling_batch(batch_neg, batch_score):
     start = time()
