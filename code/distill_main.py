@@ -15,10 +15,12 @@ import Procedure
 import numpy as np
 from world import cprint
 from pprint import pprint
-from sample import DistillSample
 from tensorboardX import SummaryWriter
+from sample import DistillSample, LogitsSample
 
-
+# ----------------------------------------------------------------------------
+# global
+world.DISTILL = True
 # ----------------------------------------------------------------------------
 # set seed
 utils.set_seed(world.seed)
@@ -36,12 +38,18 @@ world.cprint('teacher')
 teacher_model = register.MODELS[world.model_name](teacher_config, dataset, fix=True)
 teacher_model.eval()
 
-procedure = register.DISTILL_TRAIN['experiment']
+# procedure = register.DISTILL_TRAIN['experiment']
+procedure = register.DISTILL_TRAIN['logits']
 bpr = utils.BPRLoss(student_model, world.config)
-sampler = DistillSample(dataset,
+# sampler = DistillSample(dataset,
+#                         student_model,
+#                         teacher_model,
+#                         world.DNS_K)
+sampler = LogitsSample (dataset,
                         student_model,
                         teacher_model,
                         world.DNS_K)
+
 # ----------------------------------------------------------------------------
 # get names
 file = utils.getFileName(world.model_name, world.dataset, world.config['latent_dim_rec'], layers=world.config['lightGCN_n_layers'])

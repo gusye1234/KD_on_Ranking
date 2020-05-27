@@ -51,7 +51,7 @@ def parse_args():
     parser.add_argument('--teacher_layer', type=int, default=2, help='teacher\'s layer')
     parser.add_argument('--startepoch', type=int, default=1, help='The epoch to start distillation')
     parser.add_argument('--T', type=float, default=1.0, help='The temperature for teacher distribution')
-    parser.add_argument('--beta', type=float, default=0.997, help='The beta')
+    parser.add_argument('--beta', type=float, default=1e-4, help='The beta')
     parser.add_argument('--p0', type=float, default=1.0, help='The p0')
     parser.add_argument('--one', type=int, default=0, help='The p0')
     return parser.parse_args()

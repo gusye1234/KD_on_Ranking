@@ -88,7 +88,7 @@ class PureMF(BasicModel):
         users_emb = self.embedding_user(users)
         items_emb = self.embedding_item(items)
         scores = torch.sum(users_emb*items_emb, dim=1)
-        return self.f(scores)
+        return scores
 
 class LightGCN(BasicModel):
     def __init__(self, 
@@ -221,7 +221,11 @@ class LightGCN(BasicModel):
         neg_scores = torch.sum(neg_scores, dim=1)
         
         if weights is not None:
-            loss = torch.mean(torch.nn.functional.softplus(neg_scores - pos_scores) * weights)
+            # loss = torch.mean(torch.nn.functional.softplus(neg_scores - pos_scores) * weights)
+            x = (pos_scores - neg_scores)
+            loss = torch.mean(
+                torch.nn.functional.softplus(-x) + (1-weights)*x
+            )
         else:
             loss = torch.mean(torch.nn.functional.softplus(neg_scores - pos_scores))
         
@@ -238,10 +242,10 @@ class LightGCN(BasicModel):
         return self.f(pos_scores - neg_scores)
        
     def forward(self, users, items):
-        # compute embedding
+        """
+        without sigmoid
+        """
         all_users, all_items = self.computer()
-        # print('forward')
-        #all_users, all_items = self.computer()
         users_emb = all_users[users]
         items_emb = all_items[items]
         inner_pro = torch.mul(users_emb, items_emb)

@@ -29,11 +29,18 @@ class BPRLoss:
         self.lr = config['lr']
         self.opt = optim.Adam(recmodel.parameters(), lr=self.lr)
         
-    def stageOne(self, users, pos, neg, weights=None):
+    def stageOne(self, 
+                 users, 
+                 pos, 
+                 neg, 
+                 weights=None, 
+                 add_loss : torch.Tensor=None):
         loss, reg_loss = self.model.bpr_loss(users, pos, neg, weights=weights)
         reg_loss = reg_loss*self.weight_decay
         loss = loss + reg_loss
-        
+        if add_loss is not None:
+            assert add_loss.requires_grad == True
+            loss = loss + add_loss
         self.opt.zero_grad()
         loss.backward()
         self.opt.step()
@@ -121,6 +128,12 @@ def shuffle(*arrays, **kwargs):
     else:
         return result
     
+def TO(*tensors, **kwargs):
+    results = []
+    for tensor in tensors:
+        results.append(tensor.to(world.device))
+    return results
+    
 def getTeacherConfig(config : dict):
     teacher_dict = config.copy()
     teacher_dict['lightGCN_n_layers'] = teacher_dict['teacher_layer']
@@ -132,7 +145,15 @@ def time2str(sam_time : list):
     for t in sam_time:
         sam_copy += '+' + f"{t:.2f}"
     return sam_copy[1:]
-    
+
+def timer(*args):
+    func = args[0]
+    start = time()
+    results = func(*args[1:])
+    end = time() - start
+    return (results, end)
+
+  
 # ============================================================================
 # ============================================================================
 # metrics

@@ -20,19 +20,30 @@ else:
         dataset = dataloader.LoaderOne(path=data_path)
     else:
         dataset = dataloader.Loader(path=data_path)
-print('===========config================')
-pprint(world.config)
-print("cores for test:", world.CORES)
-print("comment:", world.comment)
-print("tensorboard:", world.tensorboard)
-print("LOAD:", world.LOAD)
-print("Weight path:", world.PATH)
-print("Test Topks:", world.topks)
-print("Train Method:", world.method)
-if world.method == 'dns':
+
+if world.DISTILL:
+    print('===========DISTILL================')
+    pprint(world.config)
+    print(">>beta:", world.beta)
     print(">>DNS K:", world.DNS_K)
-print("using bpr loss")
-print('===========end===================')
+    print("comment:", world.comment)
+    print("tensorboard:", world.tensorboard)
+    print("Test Topks:", world.topks)
+    print('===========end===================')
+else:
+    print('===========config================')
+    pprint(world.config)
+    print("cores for test:", world.CORES)
+    print("comment:", world.comment)
+    print("tensorboard:", world.tensorboard)
+    print("LOAD:", world.LOAD)
+    print("Weight path:", world.PATH)
+    print("Test Topks:", world.topks)
+    print("Train Method:", world.method)
+    if world.method == 'dns':
+        print(">>DNS K:", world.DNS_K)
+    print("using bpr loss")
+    print('===========end===================')
 
 MODELS = {
     'mf': model.PureMF,
@@ -41,10 +52,11 @@ MODELS = {
 
 TRAIN = {
     'original': Procedure.BPR_train_original,
-    # 'dns': Procedure.BPR_train_DNS_neg
-    'dns': Procedure.BPR_train_DNS_batch
+    'dns': Procedure.BPR_train_DNS_neg
+    # 'dns': Procedure.BPR_train_DNS_batch
 }
 
 DISTILL_TRAIN = {
-    'experiment': Procedure.Distill_train
+    'experiment': Procedure.Distill_train,
+    'logits' : Procedure.Logits_DNS
 }

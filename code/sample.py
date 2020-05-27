@@ -4,6 +4,7 @@ import multiprocessing
 from torch.nn import Softmax
 import numpy as np
 from time import time
+from utils import timer
 from world import cprint
 from model import PairWiseModel
 from dataloader import BasicDataset
@@ -87,7 +88,6 @@ class DistillSample:
                     left_limit = user+batch_score_size
                     batch_list = torch.arange(user, left_limit) if left_limit <= dataset.n_users else torch.arange(user, dataset.n_users)
                     BATCH_SCORE = self.student.getUsersRating(batch_list).cpu()
-                    print(type(BATCH_SCORE), BATCH_SCORE.size())
                     # BATCH_SCORE_teacher = self.teacher.getUsersRating(batch_list, t1=self.t1, t2=self.t2)
                     now = 0
                 sample_time1 += time()-start1
@@ -131,6 +131,10 @@ class DistillSample:
     def convex_combine(self, batch_neg, student_score, teacher_score):
         pass
     # ----------------------------------------------------------------------------
+    # method 5
+    def oriKD(self, batch_neg, batch_pos, batch_users, student_score, teacher_score):
+        pass
+    # ----------------------------------------------------------------------------
     # method 4
     def weight_pair(self, batch_neg, batch_pos, batch_users, student_score, teacher_score):
         with torch.no_grad():
@@ -142,7 +146,7 @@ class DistillSample:
                 # weights = (1-weights)
                 Items = batch_neg[batch_list, student_max]
                 weights = self.teacher.pair_score(batch_users, batch_pos, Items)
-                weights = self.scale*weights
+                weights = weights
                 # print(torch.mean(weights))s
                 return Items, weights, [time()-start, 0, 0]
             else:
@@ -192,6 +196,58 @@ class DistillSample:
         student_neg = batch_neg[batch_list, student_max]
         return student_neg
 
+
+class LogitsSample:
+    def __init__(self,
+                 dataset : BasicDataset, 
+                 student : PairWiseModel,
+                 teacher : PairWiseModel,
+                 dns_k : int,
+                 method : int = 3,
+                 beta = world.beta):
+        self.dataset = dataset
+        self.student = student
+        self.teacher = teacher
+        self.beta = beta
+        self.dns_k = dns_k
+        self.Sample = self.logits
+        world.cprint("======LOGITS baby====")
+        
+    def PerSample(self):
+        return UniformSample_DNS_deter(self.dataset, self.dns_k)
+    
+    # ----------------------------------------------------------------------------
+    # trivial method
+    def logits(self,
+               batch_users,
+               batch_pos,
+               batch_neg):
+        """
+        with grad
+        """
+        STUDENT = self.student
+        TEACHER = self.teacher
+        dns_k = self.dns_k
+        
+        NegItems = batch_neg
+        negitem_vector = NegItems.reshape((-1, )) # dns_k * |users|
+        user_vector = batch_users.repeat((dns_k, 1)).t().reshape((-1,))
+        
+        student_scores = STUDENT(user_vector, negitem_vector)
+        student_scores = student_scores.reshape((-1, dns_k))
+        teacher_scores = TEACHER(user_vector, negitem_vector)
+        teacher_scores = teacher_scores.reshape((-1, dns_k))
+        
+        negitem_vector = negitem_vector.reshape((-1, dns_k))
+        _, top1 = student_scores.max(dim=1)
+        idx = torch.arange(len(batch_users))
+        negitems = negitem_vector[idx, top1]
+        
+        KD_loss = self.beta*(1/2)*(student_scores - teacher_scores).norm(2).pow(2)
+        KD_loss = KD_loss/float(len(batch_users))
+        return negitems, KD_loss, [0,0,0]
+        
+
 # ----------------------------------------------------------------------------
 # uniform sample
 def UniformSample_original(users, dataset):
@@ -231,7 +287,7 @@ def UniformSample_original(users, dataset):
     return np.array(S), [time() - total_start, 0., 0.]
 # ----------------------------------------------------------------------------
 # Dns sampling
-def UniformSample_DNS_deter(users, dataset, dns_k):
+def UniformSample_DNS_deter(dataset, dns_k):
     """
     the original implement of BPR Sampling in LightGCN
     NOTE: we can sample a whole epoch data at one time
@@ -254,17 +310,23 @@ def UniformSample_DNS_deter(users, dataset, dns_k):
             continue
         BinForUser[:] = 0
         BinForUser[posForUser] = 1
+        NEGforUser = np.where(BinForUser == 0)[0] 
         for i in range(per_user_num):
+            # posindex = np.random.randint(0, len(posForUser))
+            # positem = posForUser[posindex]
+            # while True:
+            #     negitems = np.random.randint(0, dataset.m_items, size=(dns_k, ))
+            #     if np.sum(BinForUser[negitems]) > 0:
+            #         continue
+            #     else:
+            #         break
             posindex = np.random.randint(0, len(posForUser))
             positem = posForUser[posindex]
-            while True:
-                negitems = np.random.randint(0, dataset.m_items, size=(dns_k, ))
-                if np.sum(BinForUser[negitems]) > 0:
-                    continue
-                else:
-                    break
+            negindex = np.random.randint(0, len(NEGforUser), size=(dns_k, ))
+            negitems = NEGforUser[negindex]
             add_pair = [user, positem]
-            add_pair.extend(negitems)
+            # NEG[user*per_user_num + i, :] = negitems
+            add_pair = [user, positem, *negitems]
             S.append(add_pair)
     return np.array(S), [time() - total_start, 0., 0.]
 
@@ -287,7 +349,7 @@ def DNS_sampling_neg(batch_users, batch_neg, dataset, recmodel):
     return negitems, [time() - start, 0, sam_time2]
 # ----------------------------------------------------------------------------
 # batch rating for Dns sampling
-def UniformSample_DNS_batch(users, dataset, model, dns_k, batch_score_size = 256):
+def UniformSample_DNS_batch(dataset, model, dns_k, batch_score_size = 256):
     """
     the original implement of BPR Sampling in LightGCN
     NOTE: we can sample a whole epoch data at one time
