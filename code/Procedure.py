@@ -225,10 +225,14 @@ def Logits_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
                                                    posItems,
                                                    negItems,
                                                    batch_size=world.config['bpr_batch_size'])):
-        (batch_neg, KD_loss, sam_time), time = timer(sampler.Sample, batch_users, batch_pos, batch_neg)
+        (batch_neg, weights, KD_loss, sam_time), time = timer(sampler.Sample, batch_users, batch_pos, batch_neg)
         dns_time += time
-        cri = bpr.stageOne(batch_users, batch_pos, batch_neg, add_loss=KD_loss)        
+        weight_mean = torch.mean(weights).item()
+        cri = bpr.stageOne(batch_users, batch_pos, batch_neg, add_loss=KD_loss, weights=weights)        
         aver_loss += cri
+        if world.tensorboard:
+            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
+            w.add_scalar(f'Weights/mean_weights', weight_mean, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
     aver_loss = aver_loss / total_batch
     print(f"DNS[{dns_time}]")
     return f"BPR[aver loss{aver_loss:.3e}]"   

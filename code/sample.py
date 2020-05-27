@@ -1,13 +1,13 @@
 import world
 import torch
 import multiprocessing
-from torch.nn import Softmax
 import numpy as np
 from time import time
-from utils import timer
+from utils import timer, shapes
 from world import cprint
 from model import PairWiseModel
 from dataloader import BasicDataset
+from torch.nn import Softmax, Sigmoid
 
 ALLPOS = None
 # ----------------------------------------------------------------------------
@@ -211,6 +211,8 @@ class LogitsSample:
         self.beta = beta
         self.dns_k = dns_k
         self.Sample = self.logits
+        self.sigmoid = Sigmoid()
+        self.t = 0.3
         world.cprint("======LOGITS baby====")
         
     def PerSample(self):
@@ -235,25 +237,29 @@ class LogitsSample:
         
         student_scores = STUDENT(user_vector, negitem_vector)
         student_scores = student_scores.reshape((-1, dns_k))
+        student_pos_scores = STUDENT(batch_users, batch_pos)
+        
         teacher_scores = TEACHER(user_vector, negitem_vector)
         teacher_scores = teacher_scores.reshape((-1, dns_k))
+        teacher_pos_scores = TEACHER(batch_users, batch_pos)
         
-        negitem_vector = negitem_vector.reshape((-1, dns_k))
         _, top1 = student_scores.max(dim=1)
         idx = torch.arange(len(batch_users))
-        negitems = negitem_vector[idx, top1]
+        negitems = NegItems[idx, top1]
+        weights = self.sigmoid((teacher_pos_scores - teacher_scores[idx, top1])/self.t)
         
-        KD_loss = self.beta*(1/2)*(student_scores - teacher_scores).norm(2).pow(2)
+        KD_loss = self.beta*(1/2)*(
+            (student_pos_scores - student_scores.t()) - (teacher_pos_scores - teacher_scores.t())
+            ).norm(2).pow(2)
         KD_loss = KD_loss/float(len(batch_users))
-        return negitems, KD_loss, [0,0,0]
-        
-
+        return negitems, weights, KD_loss, [0,0,0]
+    
 # ----------------------------------------------------------------------------
 # uniform sample
 def UniformSample_original(users, dataset):
     """
     the original implement of BPR Sampling in LightGCN
-    NOTE: we can sample a whole epoch data at one time
+    NOTE: we sample a whole epoch data at one time
     :return:
         np.array
     """
@@ -339,12 +345,13 @@ def DNS_sampling_neg(batch_users, batch_neg, dataset, recmodel):
         NegItems = batch_neg
         negitem_vector = NegItems.reshape((-1, )) # dns_k * |users|
         user_vector = batch_users.repeat((dns_k, 1)).t().reshape((-1,))
+        
         scores = recmodel(user_vector, negitem_vector)
         scores = scores.reshape((-1, dns_k))
-        negitem_vector = negitem_vector.reshape((-1, dns_k))
+
         _, top1 = scores.max(dim=1)
         idx = torch.arange(len(batch_users)).to(world.device)
-        negitems = negitem_vector[idx, top1]
+        negitems = NegItems[idx, top1]
         sam_time2 = time() - sam_time2
     return negitems, [time() - start, 0, sam_time2]
 # ----------------------------------------------------------------------------

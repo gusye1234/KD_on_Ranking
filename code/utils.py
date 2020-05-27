@@ -134,6 +134,12 @@ def TO(*tensors, **kwargs):
         results.append(tensor.to(world.device))
     return results
     
+def shapes(*tensors):
+    shape = [tensor.size() for tensor in tensors]
+    strs = [str(sh) for sh in shape]
+    print(" : ".join(strs))
+        
+
 def getTeacherConfig(config : dict):
     teacher_dict = config.copy()
     teacher_dict['lightGCN_n_layers'] = teacher_dict['teacher_layer']

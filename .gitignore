@@ -10,5 +10,7 @@
 *.sqlite3
 checkpoints/
 runs/
+**/counts/
 __pycache__/
 *.npy
+count.txt
