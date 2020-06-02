@@ -18,8 +18,8 @@ from world import cprint
 from tensorboardX import SummaryWriter
 
 # ----------------------------------------------------------------------------
-utils.set_seed(world.seed)
-print(f"[SEED:{world.seed}]")
+utils.set_seed(world.SEED)
+print(f"[SEED:{world.SEED}]")
 # ----------------------------------------------------------------------------
 # init model
 import register
@@ -41,7 +41,7 @@ if world.LOAD:
 # ----------------------------------------------------------------------------
 earlystop = utils.EarlyStop(patience=30, model=Recmodel, filename=weight_file)
 Neg_k = 1
-Recmodel = Recmodel.to(world.device)
+Recmodel = Recmodel.to(world.DEVICE)
 # ----------------------------------------------------------------------------
 # init tensorboard
 if world.tensorboard:

@@ -20,6 +20,7 @@ BOARD_PATH = os.path.join(CODE_PATH, 'runs')
 DATA_PATH = os.path.join(ROOT_PATH, 'data')
 DISTILL = False
 args = parse_args()
+ARGS = args
 
 config = {}
 all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon']
@@ -47,9 +48,9 @@ if method=='dns' and DNS_K == 1:
     method = 'original'
 
 GPU = torch.cuda.is_available()
-device = torch.device('cuda' if GPU else "cpu")
+DEVICE = torch.device('cuda' if GPU else "cpu")
 CORES = multiprocessing.cpu_count() // 2
-seed = args.seed
+SEED = args.seed
 
 dataset = args.dataset
 model_name = args.model
@@ -67,6 +68,8 @@ PATH = args.path
 ALLDATA = args.alldata
 TESTDATA = args.testdata
 ONE = args.one
+if ONE and TESTDATA:
+    raise TypeError("levave-one-out data shouldn't be trained only by test!!!")
 T = args.T
 beta = args.beta
 p0 = args.p0

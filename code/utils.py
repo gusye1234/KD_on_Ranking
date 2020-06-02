@@ -10,10 +10,10 @@ import world
 import torch
 import random
 import numpy as np
-from torch import log
 from time import time
 from model import LightGCN
 from torch import nn, optim
+from torch import log, Tensor
 from model import PairWiseModel
 from dataloader import BasicDataset
 
@@ -46,6 +46,27 @@ class BPRLoss:
         self.opt.step()
         
         return loss.cpu().item()
+
+def getTestweight(users   : Tensor, 
+                  items   : Tensor, 
+                  dataset : BasicDataset):
+    """
+        designed only for levave-one-out data
+    """
+    users = users.cpu().numpy().astype('int')
+    items = items.cpu().numpy().astype('int')
+    testdict = dataset.testDict
+    test_items = []
+    for user in users:
+        test_item = testdict[user][0]
+        test_items.append(test_item)
+    test_items = np.array(test_items).astype('int')
+    index = (test_items == items)
+    weights = np.ones_like(users)
+    weights[index] = world.ARGS.testweight
+    
+    return Tensor(weights).to(world.DEVICE)
+    
 # ============================================================================
 # ============================================================================
 # utils
@@ -131,7 +152,7 @@ def shuffle(*arrays, **kwargs):
 def TO(*tensors, **kwargs):
     results = []
     for tensor in tensors:
-        results.append(tensor.to(world.device))
+        results.append(tensor.to(world.DEVICE))
     return results
     
 def shapes(*tensors):

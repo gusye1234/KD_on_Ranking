@@ -23,8 +23,8 @@ from sample import DistillSample, LogitsSample
 world.DISTILL = True
 # ----------------------------------------------------------------------------
 # set seed
-utils.set_seed(world.seed)
-print(f"[SEED:{world.seed}]")
+utils.set_seed(world.SEED)
+print(f"[SEED:{world.SEED}]")
 # ----------------------------------------------------------------------------
 # init model
 import register
@@ -74,8 +74,8 @@ except FileNotFoundError:
 # migrate and stuffs
 earlystop = utils.EarlyStop(patience=60, model=student_model, filename=weight_file)
 Neg_k = 1
-student_model = student_model.to(world.device)
-teacher_model = teacher_model.to(world.device)
+student_model = student_model.to(world.DEVICE)
+teacher_model = teacher_model.to(world.DEVICE)
 # ----------------------------------------------------------------------------
 # init tensorboard
 if world.tensorboard:

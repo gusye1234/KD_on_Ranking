@@ -185,7 +185,7 @@ class Loader(BasicDataset):
                 end = self.n_users + self.m_items
             else:
                 end = (i_fold + 1) * fold_len
-            A_fold.append(self._convert_sp_mat_to_sp_tensor(A[start:end]).coalesce().to(world.device))
+            A_fold.append(self._convert_sp_mat_to_sp_tensor(A[start:end]).coalesce().to(world.DEVICE))
         return A_fold
 
     def _convert_sp_mat_to_sp_tensor(self, X):
@@ -240,7 +240,7 @@ class Loader(BasicDataset):
                 print("done split matrix")
             else:
                 self.Graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
-                self.Graph = self.Graph.coalesce().to(world.device)
+                self.Graph = self.Graph.coalesce().to(world.DEVICE)
                 print("don't split the matrix")
         return self.Graph
 
@@ -280,7 +280,7 @@ class Loader(BasicDataset):
                 print("done split matrix")
             else:
                 self.Graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
-                self.Graph = self.Graph.coalesce().to(world.device)
+                self.Graph = self.Graph.coalesce().to(world.DEVICE)
                 print("don't split the matrix")
         return self.Graph
 
@@ -347,6 +347,7 @@ class LoaderOne(Loader):
         self.trainItem = np.array(trainItem) - min_index
         self.testUser = np.array(testUser) - min_index
         self.testItem = np.array(testItem) - min_index
+        self.__m_items += 1 - min_index
         assert len(testUser) == (max(trainUser) + 1 - min_index)
         if world.ALLDATA:
             self._trainUser = self.trainUser
@@ -493,7 +494,7 @@ class LastFM(BasicDataset):
             data  = dense[dense >= 1e-9]
             assert len(index) == len(data)
             self.Graph = torch.sparse.FloatTensor(index.t(), data, torch.Size([self.n_users+self.m_items, self.n_users+self.m_items]))
-            self.Graph = self.Graph.coalesce().to(world.device)
+            self.Graph = self.Graph.coalesce().to(world.DEVICE)
         return self.Graph
 
     def build_test(self):

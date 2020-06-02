@@ -162,7 +162,7 @@ class DistillSample:
             teacher_index = torch.multinomial(teacher_p, 1).squeeze()
             student_neg = batch_neg[batch_list, student_max]
             teacher_neg = batch_neg[batch_list, teacher_index]
-            Items = torch.zeros((len(batch_neg), )).to(world.device).long()
+            Items = torch.zeros((len(batch_neg), )).to(world.DEVICE).long()
             P_bern = torch.ones((len(batch_neg), ))*self.W
             indicator = torch.bernoulli(P_bern).bool()
             Items[indicator] = student_neg[indicator]
@@ -180,7 +180,7 @@ class DistillSample:
             _, teacher_min = torch.min(teacher_score, dim=1)
             student_neg = batch_neg[batch_list, student_max]
             teacher_neg = batch_neg[batch_list, teacher_min]
-            Items = torch.zeros((len(batch_neg), )).to(world.device).long()
+            Items = torch.zeros((len(batch_neg), )).to(world.DEVICE).long()
             P_bern = torch.ones((len(batch_neg), ))*self.W
             indicator = torch.bernoulli(P_bern).bool()
             Items[indicator] = student_neg[indicator]
@@ -350,7 +350,7 @@ def DNS_sampling_neg(batch_users, batch_neg, dataset, recmodel):
         scores = scores.reshape((-1, dns_k))
 
         _, top1 = scores.max(dim=1)
-        idx = torch.arange(len(batch_users)).to(world.device)
+        idx = torch.arange(len(batch_users)).to(world.DEVICE)
         negitems = NegItems[idx, top1]
         sam_time2 = time() - sam_time2
     return negitems, [time() - start, 0, sam_time2]
