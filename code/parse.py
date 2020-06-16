@@ -14,7 +14,7 @@ def parse_args():
                         help="the batch size for bpr loss training procedure")
     parser.add_argument('--recdim', type=int,default=64,
                         help="the embedding size of lightGCN")
-    parser.add_argument('--layer', type=int,default=3,
+    parser.add_argument('--layer', type=int,default=2,
                         help="the layer num of lightGCN")
     parser.add_argument('--lr', type=float,default=0.001,
                         help="the learning rate")

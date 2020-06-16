@@ -208,6 +208,7 @@ class Loader(BasicDataset):
                 
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
+                print(norm_adj.shape)
             except :
                 print("generating adjacency matrix")
                 s = time()
@@ -234,46 +235,6 @@ class Loader(BasicDataset):
                     sp.save_npz(self.path + '/s_pre_adj_mat_all.npz', norm_adj)
                 else:
                     sp.save_npz(self.path + '/s_pre_adj_mat.npz', norm_adj)
-
-            if self.split == True:
-                self.Graph = self._split_A_hat(norm_adj)
-                print("done split matrix")
-            else:
-                self.Graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
-                self.Graph = self.Graph.coalesce().to(world.DEVICE)
-                print("don't split the matrix")
-        return self.Graph
-
-    def getP(self):
-        print("loading adjacency matrix")
-        if self.Graph is None:
-            try:
-                a = 0.05
-                P = sp.load_npz(self.path + '/P.npz')
-                print("using P====", "alpha is", a)
-                print("successfully loaded...")
-                norm_adj = P
-            except :
-                print("generating P")
-                s = time()
-                pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat.npz')
-                print("load pre")
-                item_model = sp.load_npz(self.path + '/item_model.npz')
-                item_model = item_model.tolil()
-                print("item model", item_model.shape)
-                
-                M = sp.dok_matrix((self.n_users + self.m_items, self.n_users + self.m_items), dtype=np.float32)
-                M = M.tolil()
-                I = sp.eye(self.n_users).tolil()
-                M[:self.n_users, :self.n_users] = I
-                M[self.n_users:, self.n_users:] = item_model
-                M = M.tocsr()
-                
-                norm_adj = (1-a)*pre_adj_mat + a*M
-                
-                sp.save_npz(self.path + '/P.npz', norm_adj)
-                end = time()
-                print(f"costing {end-s}s, saved norm_mat...")
 
             if self.split == True:
                 self.Graph = self._split_A_hat(norm_adj)

@@ -13,4 +13,5 @@ runs/
 **/counts/
 __pycache__/
 *.npy
+*.npz
 count.txt
