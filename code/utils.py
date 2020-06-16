@@ -179,6 +179,14 @@ def timer(*args):
     results = func(*args[1:])
     end = time() - start
     return (results, end)
+
+def load(model, file):
+    try:
+        model.load_state_dict(torch.load(file))
+    except RuntimeError:
+        model.load_state_dict(torch.load(file, map_location=torch.device('cpu')))
+    except FileNotFoundError:
+        raise FileNotFoundError(f"{file} NOT exist!!!")
 # ============================================================================
 # ============================================================================
 # metrics

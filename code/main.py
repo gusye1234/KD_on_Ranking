@@ -37,17 +37,13 @@ if world.DISTILL:
     world.cprint("loaded teacher weights from") 
     print(teacher_weight_file)
     print('-------------------------')
-    try:
-        teacher_model.load_state_dict(torch.load(teacher_weight_file))
-    except RuntimeError:
-        teacher_model.load_state_dict(torch.load(teacher_weight_file, map_location=torch.device('cpu')))
-    except FileNotFoundError:
-        raise FileNotFoundError(f"{teacher_weight_file} NOT exist!!!")
+    utils.load(teacher_model, teacher_weight_file)
+    teacher_model = teacher_model.to(world.DEVICE)
     cprint("[TEST Teacher]")
     results = Procedure.Test(dataset, teacher_model, 0, None, world.config['multicore'])
     pprint(results)
     Recmodel = register.MODELS['leb'](world.config, dataset, teacher_model)
-    # print(Recmodel)
+    print(Recmodel)
 else:
     Recmodel = register.MODELS[world.model_name](world.config, dataset)
     
@@ -58,11 +54,7 @@ file = utils.getFileName(world.model_name, world.dataset, world.config['latent_d
 weight_file = os.path.join(world.FILE_PATH, file)
 print(f"load and save to {weight_file}")
 if world.LOAD:
-    try:
-        Recmodel.load_state_dict(torch.load(weight_file,map_location=torch.device('cpu')))
-        world.cprint(f"loaded model weights from {weight_file}") 
-    except FileNotFoundError:
-        print(f"{weight_file} not exists, start from beginning")
+    utils.load(Recmodel, weight_file)
 # ----------------------------------------------------------------------------
 earlystop = utils.EarlyStop(patience=30, model=Recmodel, filename=weight_file)
 Neg_k = 1

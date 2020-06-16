@@ -235,8 +235,6 @@ class LightEmb(LightGCN):
         self.tea = teacher_model
         self.tea.fix = True
         self.__init_weight()
-        print(self.embedding_user)
-        print(self.embedding_item)
         
     def __init_weight(self):
         self.num_users  = self.dataset.n_users
@@ -258,8 +256,18 @@ class LightEmb(LightGCN):
         
         
         self.latent_dim_tea = self.tea.latent_dim
-        self.transfer = nn.Linear(self.latent_dim_tea,
-                                  self.latent_dim)
+        self.transfer = nn.Sequential(
+            nn.Linear(self.latent_dim_tea, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, self.latent_dim),
+            nn.ReLU()
+        )
+        # self.transfer = nn.Linear(self.latent_dim_tea,
+        #                           self.latent_dim)
         # self.f = nn.Sigmoid()
         self.f = nn.ReLU()
         # self.f = nn.LeakyReLU()
@@ -306,3 +314,5 @@ class Embedding_wrapper:
         except AssertionError:
             raise AssertionError(f"weight your pass is wrong! \n expect {self.num}X{self.dim}, but got {weight.shapet}")
   
+    def __repr__(self):
+        return f"Emb({self.num} X {self.dim})"
