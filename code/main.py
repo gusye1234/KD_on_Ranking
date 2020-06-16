@@ -25,7 +25,32 @@ print(f"[SEED:{world.SEED}]")
 import register
 from register import dataset
 
-Recmodel = register.MODELS[world.model_name](world.config, dataset)
+if world.DISTILL:
+    print("distill")
+    tea_config = utils.getTeacherConfig(world.config)
+    world.cprint('teacher')
+    teacher_model = register.MODELS[world.model_name](tea_config, dataset, fix=True)
+    teacher_model.eval()
+    teacher_file = utils.getFileName(world.model_name, world.dataset, world.config['teacher_dim'], layers=world.config['teacher_layer'])
+    teacher_weight_file = os.path.join(world.FILE_PATH, teacher_file)
+    print('-------------------------')
+    world.cprint("loaded teacher weights from") 
+    print(teacher_weight_file)
+    print('-------------------------')
+    try:
+        teacher_model.load_state_dict(torch.load(teacher_weight_file))
+    except RuntimeError:
+        teacher_model.load_state_dict(torch.load(teacher_weight_file, map_location=torch.device('cpu')))
+    except FileNotFoundError:
+        raise FileNotFoundError(f"{teacher_weight_file} NOT exist!!!")
+    cprint("[TEST Teacher]")
+    results = Procedure.Test(dataset, teacher_model, 0, None, world.config['multicore'])
+    pprint(results)
+    Recmodel = register.MODELS['leb'](world.config, dataset, teacher_model)
+    # print(Recmodel)
+else:
+    Recmodel = register.MODELS[world.model_name](world.config, dataset)
+    
 procedure = register.TRAIN[world.method]
 bpr = utils.BPRLoss(Recmodel, world.config)
 # ----------------------------------------------------------------------------

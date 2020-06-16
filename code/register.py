@@ -46,8 +46,8 @@ else:
     print('===========end===================')
 
 MODELS = {
-    'mf': model.PureMF,
-    'lgn': model.LightGCN
+    'lgn': model.LightGCN,
+    'leb': model.LightEmb
 }
 
 TRAIN = {

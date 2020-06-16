@@ -56,7 +56,6 @@ def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=N
             weights = utils.getTestweight(batch_users, batch_pos, dataset)
         else:
             weights = None
-        print(weights.mean())
         cri = bpr.stageOne(batch_users, batch_pos, batch_neg, weights=weights)
         aver_loss += cri
         if world.tensorboard:

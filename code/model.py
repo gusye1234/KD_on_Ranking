@@ -45,81 +45,53 @@ class PairWiseModel(BasicModel):
         """
         raise NotImplementedError
 
-class PureMF(BasicModel):
-    def __init__(self, 
-                 config:dict, 
-                 dataset:BasicDataset):
-        super(PureMF, self).__init__()
-        self.num_users  = dataset.n_users
-        self.num_items  = dataset.m_items
-        self.latent_dim = config['latent_dim_rec']
-        self.f = nn.Sigmoid()
-        self.__init_weight()
-        
-    def __init_weight(self):
-        self.embedding_user = torch.nn.Embedding(
-            num_embeddings=self.num_users, embedding_dim=self.latent_dim)
-        self.embedding_item = torch.nn.Embedding(
-            num_embeddings=self.num_items, embedding_dim=self.latent_dim)
-        print("using Normal distribution N(0,1) initialization for PureMF")
-        
-    def getUsersRating(self, users):
-        users = users.long()
-        users_emb = self.embedding_user(users)
-        items_emb = self.embedding_item.weight
-        scores = torch.matmul(users_emb, items_emb.t())
-        return self.f(scores)
+class DistillEmbedding(BasicModel):
+    '''
+        student's embedding is not total free
+    '''
+    def __init__(self, *args):
+        super(DistillEmbedding, self).__init__()
     
-    def bpr_loss(self, users, pos, neg):
-        users_emb = self.embedding_user(users.long())
-        pos_emb   = self.embedding_item(pos.long())
-        neg_emb   = self.embedding_item(neg.long())
-        pos_scores= torch.sum(users_emb*pos_emb, dim=1)
-        neg_scores= torch.sum(users_emb*neg_emb, dim=1)
-        loss = torch.mean(nn.functional.softplus(neg_scores - pos_scores))
-        reg_loss = (1/2)*(users_emb.norm(2).pow(2) + 
-                          pos_emb.norm(2).pow(2) + 
-                          neg_emb.norm(2).pow(2))/float(len(users))
-        return loss, reg_loss
-        
-    def forward(self, users, items):
-        users = users.long()
-        items = items.long()
-        users_emb = self.embedding_user(users)
-        items_emb = self.embedding_item(items)
-        scores = torch.sum(users_emb*items_emb, dim=1)
-        return scores
+    @property
+    def embedding_user(self):
+        raise NotImplementedError
+    @property
+    def embedding_item(self):
+        raise NotImplementedError
+
 
 class LightGCN(BasicModel):
     def __init__(self, 
                  config:dict, 
                  dataset:BasicDataset,
-                 fix:bool = False):
+                 fix:bool = False,
+                 init=True):
         super(LightGCN, self).__init__()
         self.config = config
         self.dataset : dataloader.BasicDataset = dataset
         self.fix = fix
-        self.__init_weight()
+        self.init_weight(init)
 
-    def __init_weight(self):
+    def init_weight(self, init):
         self.num_users  = self.dataset.n_users
         self.num_items  = self.dataset.m_items
         self.latent_dim = self.config['latent_dim_rec']
         self.n_layers = self.config['lightGCN_n_layers']
         self.keep_prob = self.config['keep_prob']
         self.A_split = self.config['A_split']
-        self.embedding_user = torch.nn.Embedding(
-            num_embeddings=self.num_users, embedding_dim=self.latent_dim)
-        self.embedding_item = torch.nn.Embedding(
-            num_embeddings=self.num_items, embedding_dim=self.latent_dim)
-        if self.config['pretrain'] == 0:
-            nn.init.xavier_uniform_(self.embedding_user.weight, gain=1)
-            nn.init.xavier_uniform_(self.embedding_item.weight, gain=1)
-            print('use xavier initilizer')
-        else:
-            self.embedding_user.weight.data.copy_(torch.from_numpy(self.config['user_emb']))
-            self.embedding_item.weight.data.copy_(torch.from_numpy(self.config['item_emb']))
-            print('use pretarined data')
+        if init:
+            self.embedding_user = torch.nn.Embedding(
+                num_embeddings=self.num_users, embedding_dim=self.latent_dim)
+            self.embedding_item = torch.nn.Embedding(
+                num_embeddings=self.num_items, embedding_dim=self.latent_dim)
+            if self.config['pretrain'] == 0:
+                nn.init.xavier_uniform_(self.embedding_user.weight, gain=1)
+                nn.init.xavier_uniform_(self.embedding_item.weight, gain=1)
+                print('use xavier initilizer')
+            else:
+                self.embedding_user.weight.data.copy_(torch.from_numpy(self.config['user_emb']))
+                self.embedding_item.weight.data.copy_(torch.from_numpy(self.config['item_emb']))
+                print('use pretarined data')
         self.f = nn.Sigmoid()
         self.Graph = self.dataset.getSparseGraph()
         print(f"lgn is already to go(dropout:{self.config['dropout']})")
@@ -251,3 +223,86 @@ class LightGCN(BasicModel):
         inner_pro = torch.mul(users_emb, items_emb)
         gamma     = torch.sum(inner_pro, dim=1)
         return gamma
+
+class LightEmb(LightGCN):
+    def __init__(self,
+                 config        : dict,
+                 dataset      : BasicDataset,
+                 teacher_model: LightGCN):
+        super(LightEmb, self).__init__(config, dataset, init=False)
+        self.config = config
+        self.dataset = dataset
+        self.tea = teacher_model
+        self.tea.fix = True
+        self.__init_weight()
+        print(self.embedding_user)
+        print(self.embedding_item)
+        
+    def __init_weight(self):
+        self.num_users  = self.dataset.n_users
+        self.num_items  = self.dataset.m_items
+        self.latent_dim = self.config['latent_dim_rec']
+        self.n_layers = self.config['lightGCN_n_layers']
+        self.keep_prob = self.config['keep_prob']
+        
+        self._embedding_user = Embedding_wrapper(
+             num_embeddings=self.num_users, embedding_dim=self.latent_dim
+        )
+        self._embedding_item = Embedding_wrapper(
+             num_embeddings=self.num_items, embedding_dim=self.latent_dim
+        )
+        self._user_tea = self.tea.embedding_user.weight.data
+        self._item_tea = self.tea.embedding_item.weight.data
+        print(self._user_tea.requires_grad, self._item_tea.requires_grad)
+        # not grad needed for teacher
+        
+        
+        self.latent_dim_tea = self.tea.latent_dim
+        self.transfer = nn.Linear(self.latent_dim_tea,
+                                  self.latent_dim)
+        # self.f = nn.Sigmoid()
+        self.f = nn.ReLU()
+        # self.f = nn.LeakyReLU()
+        
+    @property
+    def embedding_user(self):
+        weights = self.transfer(self._user_tea)
+        weights = self.f(weights)
+        self._embedding_user.pass_weight(weights)
+        return self._embedding_user
+        
+    @property
+    def embedding_item(self):
+        weights = self.transfer(self._item_tea)
+        weights = self.f(weights)
+        self._embedding_item.pass_weight(weights)
+        return self._embedding_item
+    
+    
+    
+    
+    
+class Embedding_wrapper:
+    def __init__(self, num_embeddings, embedding_dim):
+        self.num = num_embeddings
+        self.dim = embedding_dim
+        self.weight = None
+        
+    def __call__(self,
+                 index : torch.Tensor):
+        if not isinstance(index, torch.LongTensor):
+            index = index.long()
+        if self.weight is not None:
+            return self.weight[index]
+        else:
+            raise TypeError("haven't update embedding")
+        
+    def pass_weight(self, weight):
+        try:
+            assert len(weight.shape)
+            assert weight.shape[0] == self.num
+            assert weight.shape[1] == self.dim
+            self.weight = weight
+        except AssertionError:
+            raise AssertionError(f"weight your pass is wrong! \n expect {self.num}X{self.dim}, but got {weight.shapet}")
+  
