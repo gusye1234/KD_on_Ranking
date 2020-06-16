@@ -256,38 +256,39 @@ class LightEmb(LightGCN):
         
         
         self.latent_dim_tea = self.tea.latent_dim
-        self.transfer = nn.Sequential(
-            nn.Linear(self.latent_dim_tea, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
+        self.transfer_user = nn.Sequential(
+            nn.Linear(self.latent_dim_tea, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Linear(64, self.latent_dim),
-            nn.ReLU()
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, self.latent_dim)
         )
-        # self.transfer = nn.Linear(self.latent_dim_tea,
-        #                           self.latent_dim)
+        self.transfer_item = nn.Sequential(
+            nn.Linear(self.latent_dim_tea, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, self.latent_dim)
+        )
         # self.f = nn.Sigmoid()
         self.f = nn.ReLU()
         # self.f = nn.LeakyReLU()
         
     @property
     def embedding_user(self):
-        weights = self.transfer(self._user_tea)
-        weights = self.f(weights)
+        weights = self.transfer_user(self._user_tea)
         self._embedding_user.pass_weight(weights)
         return self._embedding_user
         
     @property
     def embedding_item(self):
-        weights = self.transfer(self._item_tea)
-        weights = self.f(weights)
+        weights = self.transfer_item(self._item_tea)
         self._embedding_item.pass_weight(weights)
         return self._embedding_item
-    
-    
-    
     
     
 class Embedding_wrapper:
@@ -316,3 +317,4 @@ class Embedding_wrapper:
   
     def __repr__(self):
         return f"Emb({self.num} X {self.dim})"
+    
