@@ -208,7 +208,6 @@ class Loader(BasicDataset):
                 
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
-                print(norm_adj.shape)
             except :
                 print("generating adjacency matrix")
                 s = time()

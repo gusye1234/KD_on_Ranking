@@ -26,6 +26,8 @@ import register
 from register import dataset
 
 if world.DISTILL:
+
+    # embedding distillation
     print("distill")
     tea_config = utils.getTeacherConfig(world.config)
     world.cprint('teacher')

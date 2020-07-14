@@ -2,8 +2,9 @@ import world
 import torch
 import multiprocessing
 import numpy as np
+from torch.nn.functional import softplus
 from time import time
-from utils import timer, shapes
+from utils import Timer, shapes, combinations
 from world import cprint
 from model import PairWiseModel
 from dataloader import BasicDataset
@@ -210,9 +211,11 @@ class LogitsSample:
         self.teacher = teacher
         self.beta = beta
         self.dns_k = dns_k
-        self.Sample = self.logits
+        # self.Sample = self.logits
+        self.Sample = self.ranking
         self.sigmoid = Sigmoid()
         self.t = 0.3
+        self.pairs = combinations(0, dns_k)
         world.cprint("======LOGITS baby====")
         
     def PerSample(self):
@@ -220,10 +223,7 @@ class LogitsSample:
     
     # ----------------------------------------------------------------------------
     # trivial method
-    def logits(self,
-               batch_users,
-               batch_pos,
-               batch_neg):
+    def logits(self, batch_users, batch_pos, batch_neg):
         """
         with grad
         """
@@ -253,6 +253,92 @@ class LogitsSample:
             ).norm(2).pow(2)
         KD_loss = KD_loss/float(len(batch_users))
         return negitems, weights, KD_loss, [0,0,0]
+    # ----------------------------------------------------------------------------
+    # ranking 
+    def ranking(self, batch_users, batch_pos, batch_neg):
+        """
+        with grad
+        """
+        STUDENT = self.student
+        TEACHER = self.teacher
+        dns_k = self.dns_k
+        times = []
+        
+        with Timer(times):    
+            NegItems = batch_neg
+            negitem_vector = NegItems.reshape((-1, )) # dns_k * |users|
+            user_vector = batch_users.repeat((dns_k, 1)).t().reshape((-1,))
+            
+            student_scores = STUDENT(user_vector, negitem_vector)
+            student_scores = student_scores.reshape((-1, dns_k))
+            
+            teacher_scores = TEACHER(user_vector, negitem_vector)
+            teacher_scores = teacher_scores.reshape((-1, dns_k))
+            teacher_pos_scores = TEACHER(batch_users, batch_pos)
+            
+            _, top1 = student_scores.max(dim=1)
+            idx = torch.arange(len(batch_users))
+            negitems = NegItems[idx, top1]
+            weights = self.sigmoid((teacher_pos_scores - teacher_scores[idx, top1])/self.t)
+        
+        all_pairs = self.pairs.T
+        pairs = self.pairs.T
+        rank_loss = torch.tensor(0.)
+        total_err = 0
+        
+        with Timer(times):
+            for i, user in enumerate(batch_users) :
+                # pairs = all_pairs[:, np.random.randint(all_pairs.shape[1], size=(8, ))]
+                teacher_rank = (teacher_scores[i][pairs[0]] > teacher_scores[i][pairs[1]])
+                student_rank = (student_scores[i][pairs[0]] > student_scores[i][pairs[1]])
+                err_rank = torch.logical_xor(teacher_rank, student_rank)
+                total_err += torch.sum(err_rank)
+                should_rank_g = torch.zeros_like(teacher_rank).bool()
+                should_rank_l = torch.zeros_like(teacher_rank).bool()
+                # use teacher to confirm wrong rank
+                should_rank_g[err_rank] = teacher_rank[err_rank]
+                should_rank_l[err_rank] = (~teacher_rank)[err_rank]
+                if torch.any(should_rank_g):
+                    rank_loss += torch.mean(softplus(
+                        (student_scores[i][pairs[1]] - student_scores[i][pairs[0]])[should_rank_g]
+                    ))# should rank it higher
+                if torch.any(should_rank_l):
+                    rank_loss += torch.mean(softplus(
+                        (student_scores[i][pairs[0]] - student_scores[i][pairs[1]])[should_rank_l]
+                    ))# should rank it lower
+                if torch.isnan(rank_loss) or torch.isinf(rank_loss):
+                    print("student", student_scores[i])
+                    print("pos", (student_scores[i][pairs[1]] - student_scores[i][pairs[0]])[should_rank_g])
+                    print("neg", (student_scores[i][pairs[0]] - student_scores[i][pairs[1]])[should_rank_l])
+                    exit(0)
+        rank_loss /= len(batch_users)
+        rank_loss = rank_loss*self.beta
+        print(total_err, rank_loss)
+        return negitems, weights, rank_loss, np.asanyarray(times)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+        
+# ==============================================================
+# NON-EXPERIMENTAL PART                                        =
+# ==============================================================
     
 # ----------------------------------------------------------------------------
 # uniform sample

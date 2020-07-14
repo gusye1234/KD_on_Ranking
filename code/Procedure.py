@@ -27,88 +27,7 @@ from utils import time2str, timer
 item_count = None
 
 CORES = multiprocessing.cpu_count() // 2
-# ----------------------------------------------------------------------------
-def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
-    global item_count
-    if item_count is None:
-        item_count = torch.zeros(dataset.m_items)
-    Recmodel = recommend_model
-    Recmodel.train()
-    bpr: utils.BPRLoss = loss_class
-    allusers = list(range(dataset.n_users))
-    S, sam_time = UniformSample_original(allusers, dataset)
-    print(f"BPR[sample time][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
-    users = torch.Tensor(S[:, 0]).long()
-    posItems = torch.Tensor(S[:, 1]).long()
-    negItems = torch.Tensor(S[:, 2]).long()
 
-    users = users.to(world.DEVICE)
-    posItems = posItems.to(world.DEVICE)
-    negItems = negItems.to(world.DEVICE)
-    users, posItems, negItems = utils.shuffle(users, posItems, negItems)
-    total_batch = len(users) // world.config['bpr_batch_size'] + 1
-    aver_loss = 0.
-    for (batch_i,
-         (batch_users,
-          batch_pos,
-          batch_neg)) in enumerate(utils.minibatch(users,
-                                                   posItems,
-                                                   negItems,
-                                                   batch_size=world.config['bpr_batch_size'])):
-        if world.ALLDATA:
-            weights = utils.getTestweight(batch_users, batch_pos, dataset)
-        else:
-            weights = None
-        item_count[batch_neg] += 1
-        cri = bpr.stageOne(batch_users, batch_pos, batch_neg, weights=weights)
-        aver_loss += cri
-        if world.tensorboard:
-            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
-    aver_loss = aver_loss / total_batch
-    return f"[BPR[aver loss{aver_loss:.3e}]"
-# ----------------------------------------------------------------------------
-def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
-    Recmodel: PairWiseModel = recommend_model
-    Recmodel.train()
-    bpr: utils.BPRLoss = loss_class
-    S,sam_time = UniformSample_DNS_deter(dataset, world.DNS_K)
-    # S,sam_time = UniformSample_DNS_neg_multi(allusers, dataset, world.DNS_K)
-    print(f"DNS[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
-    users = torch.Tensor(S[:, 0]).long()
-    posItems = torch.Tensor(S[:, 1]).long()
-    negItems = torch.Tensor(S[:, 2:]).long()
-    print(negItems.shape)
-    users = users.to(world.DEVICE)
-    posItems = posItems.to(world.DEVICE)
-    negItems = negItems.to(world.DEVICE)
-    users, posItems, negItems = utils.shuffle(users, posItems, negItems)
-    total_batch = len(users) // world.config['bpr_batch_size'] + 1
-    DNS_time = time()
-    DNS_time1 = 0.
-    DNS_time2 = 0.
-    aver_loss = 0.
-    for (batch_i,
-         (batch_users,
-          batch_pos,
-          batch_neg)) in enumerate(utils.minibatch(users,
-                                                   posItems,
-                                                   negItems,
-                                                   batch_size=world.config['bpr_batch_size'])):
-        if world.ALLDATA:
-            weights = utils.getTestweight(batch_users, batch_pos, dataset)
-        else:
-            weights = None
-        batch_neg, sam_time = DNS_sampling_neg(batch_users, batch_neg, dataset, Recmodel)
-        cri = bpr.stageOne(batch_users, batch_pos, batch_neg, weights=weights)
-        DNS_time1 += sam_time[0]
-        DNS_time2 += sam_time[2]
-        aver_loss += cri
-        if world.tensorboard:
-            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
-    print(f"DNS[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
-    aver_loss = aver_loss / total_batch
-    return f"[BPR[aver loss{aver_loss:.3e}]"
-# ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 def Distill_train(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
     global item_count
@@ -175,7 +94,8 @@ def Logits_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
     sampler : LogitsSample
     bpr: utils.BPRLoss = loss_class
     student.train()
-    aver_loss = 0.
+    aver_loss = 0
+    sample_time = 0.
     dns_time = 0.
     S,sam_time = sampler.PerSample()
     print(f"Logits[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
@@ -194,6 +114,7 @@ def Logits_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
                                                    batch_size=world.config['bpr_batch_size'])):
         (batch_neg, weights, KD_loss, sam_time), time = timer(sampler.Sample, batch_users, batch_pos, batch_neg)
         dns_time += time
+        sample_time += sam_time
         weight_mean = torch.mean(weights).item()
         cri = bpr.stageOne(batch_users, batch_pos, batch_neg, add_loss=KD_loss, weights=weights)        
         aver_loss += cri
@@ -201,7 +122,7 @@ def Logits_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
             w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
             w.add_scalar(f'Weights/mean_weights', weight_mean, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
     aver_loss = aver_loss / total_batch
-    print(f"DNS[{dns_time}]")
+    print(f"DNS[{dns_time}]; {time2str(sample_time)}")
     return f"BPR[aver loss{aver_loss:.3e}]"   
         
         
@@ -323,3 +244,85 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
         if multicore == 1:
             pool.close()
         return results
+
+def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
+    Recmodel: PairWiseModel = recommend_model
+    Recmodel.train()
+    bpr: utils.BPRLoss = loss_class
+    S,sam_time = UniformSample_DNS_deter(dataset, world.DNS_K)
+    # S,sam_time = UniformSample_DNS_neg_multi(allusers, dataset, world.DNS_K)
+    print(f"DNS[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
+    users = torch.Tensor(S[:, 0]).long()
+    posItems = torch.Tensor(S[:, 1]).long()
+    negItems = torch.Tensor(S[:, 2:]).long()
+    print(negItems.shape)
+    users = users.to(world.DEVICE)
+    posItems = posItems.to(world.DEVICE)
+    negItems = negItems.to(world.DEVICE)
+    users, posItems, negItems = utils.shuffle(users, posItems, negItems)
+    total_batch = len(users) // world.config['bpr_batch_size'] + 1
+    DNS_time = time()
+    DNS_time1 = 0.
+    DNS_time2 = 0.
+    aver_loss = 0.
+    for (batch_i,
+         (batch_users,
+          batch_pos,
+          batch_neg)) in enumerate(utils.minibatch(users,
+                                                   posItems,
+                                                   negItems,
+                                                   batch_size=world.config['bpr_batch_size'])):
+        if world.ALLDATA:
+            weights = utils.getTestweight(batch_users, batch_pos, dataset)
+        else:
+            weights = None
+        batch_neg, sam_time = DNS_sampling_neg(batch_users, batch_neg, dataset, Recmodel)
+        cri = bpr.stageOne(batch_users, batch_pos, batch_neg, weights=weights)
+        DNS_time1 += sam_time[0]
+        DNS_time2 += sam_time[2]
+        aver_loss += cri
+        if world.tensorboard:
+            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
+    print(f"DNS[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
+    aver_loss = aver_loss / total_batch
+    return f"[BPR[aver loss{aver_loss:.3e}]"
+
+
+def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
+    global item_count
+    if item_count is None:
+        item_count = torch.zeros(dataset.m_items)
+    Recmodel = recommend_model
+    Recmodel.train()
+    bpr: utils.BPRLoss = loss_class
+    allusers = list(range(dataset.n_users))
+    S, sam_time = UniformSample_original(allusers, dataset)
+    print(f"BPR[sample time][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
+    users = torch.Tensor(S[:, 0]).long()
+    posItems = torch.Tensor(S[:, 1]).long()
+    negItems = torch.Tensor(S[:, 2]).long()
+
+    users = users.to(world.DEVICE)
+    posItems = posItems.to(world.DEVICE)
+    negItems = negItems.to(world.DEVICE)
+    users, posItems, negItems = utils.shuffle(users, posItems, negItems)
+    total_batch = len(users) // world.config['bpr_batch_size'] + 1
+    aver_loss = 0.
+    for (batch_i,
+         (batch_users,
+          batch_pos,
+          batch_neg)) in enumerate(utils.minibatch(users,
+                                                   posItems,
+                                                   negItems,
+                                                   batch_size=world.config['bpr_batch_size'])):
+        if world.ALLDATA:
+            weights = utils.getTestweight(batch_users, batch_pos, dataset)
+        else:
+            weights = None
+        item_count[batch_neg] += 1
+        cri = bpr.stageOne(batch_users, batch_pos, batch_neg, weights=weights)
+        aver_loss += cri
+        if world.tensorboard:
+            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
+    aver_loss = aver_loss / total_batch
+    return f"[BPR[aver loss{aver_loss:.3e}]"

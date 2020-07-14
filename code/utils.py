@@ -127,7 +127,6 @@ def minibatch(*tensors, **kwargs):
         for i in range(0, len(tensors[0]), batch_size):
             yield tuple(x[i:i + batch_size] for x in tensors)
 
-
 def shuffle(*arrays, **kwargs):
 
     require_indices = kwargs.get('indices', False)
@@ -180,6 +179,19 @@ def timer(*args):
     end = time() - start
     return (results, end)
 
+class Timer:
+    """
+    Time context manager for code block
+    """
+    from time import time
+    def __init__(self, tape):
+        self.tape = tape
+    def __enter__(self):
+        self.start = Timer.time()
+        return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.tape.append(Timer.time()-self.start)
+
 def load(model, file):
     try:
         model.load_state_dict(torch.load(file))
@@ -187,6 +199,14 @@ def load(model, file):
         model.load_state_dict(torch.load(file, map_location=torch.device('cpu')))
     except FileNotFoundError:
         raise FileNotFoundError(f"{file} NOT exist!!!")
+    
+def combinations(start, end, com_num=2):
+    """get all the combinations of [start, end]""" 
+    from itertools import combinations
+    index = np.arange(start, end)
+    return np.asanyarray(list(combinations(index, com_num)))
+    
+    
 # ============================================================================
 # ============================================================================
 # metrics

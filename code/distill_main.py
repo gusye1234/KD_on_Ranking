@@ -45,10 +45,7 @@ bpr = utils.BPRLoss(student_model, world.config)
 #                         student_model,
 #                         teacher_model,
 #                         world.DNS_K)
-sampler = LogitsSample (dataset,
-                        student_model,
-                        teacher_model,
-                        world.DNS_K)
+sampler = LogitsSample(dataset, student_model, teacher_model, world.DNS_K)
 
 # ----------------------------------------------------------------------------
 # get names
