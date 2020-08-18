@@ -257,22 +257,14 @@ class LightEmb(LightGCN):
         
         self.latent_dim_tea = self.tea.latent_dim
         self.transfer_user = nn.Sequential(
-            nn.Linear(self.latent_dim_tea, 128),
+            nn.Linear(self.latent_dim_tea, 64),
             nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, self.latent_dim)
+            nn.Linear(64, self.latent_dim)
         )
         self.transfer_item = nn.Sequential(
-            nn.Linear(self.latent_dim_tea, 128),
+            nn.Linear(self.latent_dim_tea, 64),
             nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, self.latent_dim)
+            nn.Linear(64, self.latent_dim)
         )
         # self.f = nn.Sigmoid()
         self.f = nn.ReLU()
