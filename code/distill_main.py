@@ -53,6 +53,9 @@ file = utils.getFileName(world.model_name, world.dataset, world.config['latent_d
 weight_file = os.path.join(world.FILE_PATH, file)
 print('-------------------------')
 print(f"load and save student to {weight_file}")
+if world.LOAD:
+    utils.load(student_model, weight_file)
+world.cprint("LOAD student")
 teacher_file = utils.getFileName(world.model_name, world.dataset, world.config['teacher_dim'], layers=world.config['teacher_layer'])
 teacher_weight_file = os.path.join(world.FILE_PATH, teacher_file)
 # ----------------------------------------------------------------------------

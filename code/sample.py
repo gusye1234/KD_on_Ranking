@@ -197,7 +197,6 @@ class DistillSample:
         student_neg = batch_neg[batch_list, student_max]
         return student_neg
 
-
 class LogitsSample:
     def __init__(self,
                  dataset : BasicDataset, 
@@ -283,7 +282,7 @@ class LogitsSample:
         
         all_pairs = self.pairs.T
         pairs = self.pairs.T
-        rank_loss = torch.tensor(0.)
+        rank_loss = torch.tensor(0.).to(world.DEVICE)
         total_err = 0
         
         with Timer(times):
@@ -313,7 +312,7 @@ class LogitsSample:
                     exit(0)
         rank_loss /= len(batch_users)
         rank_loss = rank_loss*self.beta
-        print(total_err, rank_loss)
+        print(f"{total_err.item()}-> ", end='')
         return negitems, weights, rank_loss, np.asanyarray(times)
     
     

@@ -40,6 +40,7 @@ class BPRLoss:
         loss = loss + reg_loss
         if add_loss is not None:
             assert add_loss.requires_grad == True
+            print(loss.item(), add_loss.item())
             loss = loss + add_loss
         self.opt.zero_grad()
         loss.backward()
