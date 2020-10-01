@@ -25,7 +25,7 @@ print(f"[SEED:{world.SEED}]")
 import register
 from register import dataset
 
-if world.DISTILL:
+if world.EMBEDDING:
 
     # embedding distillation
     print("distill")
@@ -36,7 +36,7 @@ if world.DISTILL:
     teacher_file = utils.getFileName(world.model_name, world.dataset, world.config['teacher_dim'], layers=world.config['teacher_layer'])
     teacher_weight_file = os.path.join(world.FILE_PATH, teacher_file)
     print('-------------------------')
-    world.cprint("loaded teacher weights from") 
+    world.cprint("loaded teacher weights from")
     print(teacher_weight_file)
     print('-------------------------')
     utils.load(teacher_model, teacher_weight_file)
@@ -48,7 +48,7 @@ if world.DISTILL:
     print(Recmodel)
 else:
     Recmodel = register.MODELS[world.model_name](world.config, dataset)
-    
+
 procedure = register.TRAIN[world.method]
 bpr = utils.BPRLoss(Recmodel, world.config)
 # ----------------------------------------------------------------------------
@@ -76,13 +76,15 @@ else:
 # start training
 try:
     for epoch in range(world.TRAIN_epochs):
-        print('======================')
-        print(f'EPOCH[{epoch}/{world.TRAIN_epochs}]')
+
         start = time.time()
         output_information = procedure(dataset, Recmodel, bpr, epoch, neg_k=Neg_k,w=w)
-        
-        print(f'[saved][{output_information}]')
-        print(f"[TOTAL TIME] {time.time() - start}")
+
+        # print(f'[saved][{output_information}]')
+        # print(f"[TOTAL TIME] {time.time() - start}")
+        print(
+            f'EPOCH[{epoch}/{world.TRAIN_epochs}][{time.time() - start}] - {output_information}'
+        )
         if epoch %3 == 0:
             start = time.time()
             cprint("[TEST]")

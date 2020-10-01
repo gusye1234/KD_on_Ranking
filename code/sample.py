@@ -32,12 +32,12 @@ class DistillSample:
         self.student = student
         self.teacher = teacher
         self.methods = {
-            'pass' : self.convex_combine, # not yet
+            'combine' : self.convex_combine, # not yet
             'indicator' : self.random_indicator,
             'simple' : self.max_min,
-            'weight' : self.weight_pair
+            'weight' : self.weight_pair,
         }
-        self.method = 'weight'
+        self.method = 'combine'
         self.Sample = self.methods[self.method]
         cprint(f"Using {self.method}")
         # self.Sample = self.max_min
@@ -54,10 +54,6 @@ class DistillSample:
         with torch.no_grad():
             if epoch >= self.start_epoch:
                 self.start = True
-            if self.start:
-                print(">>W now:", self.W)
-            else:
-                print(">>DNS now")
             total_start = time()
             dataset = self.dataset
             dns_k = self.dns_k
@@ -129,8 +125,16 @@ class DistillSample:
         return torch.Tensor(S), torch.from_numpy(NEG), STUDENT, TEACHER,[time() - total_start, sample_time1, sample_time2, sample_time3, sample_time4]        
     # ----------------------------------------------------------------------------
     # method 1
-    def convex_combine(self, batch_neg, student_score, teacher_score):
-        pass
+    def convex_combine(self, batch_neg, batch_pos, batch_users, student_score, teacher_score):
+        with torch.no_grad():
+            start = time()
+            batch_list = torch.arange(0, len(batch_neg))
+            pos_score = self.teacher(batch_users, batch_pos).unsqueeze(dim=1)
+            margin  = pos_score - teacher_score
+            refine = margin*student_score
+            _, student_max = torch.max(refine, dim=1)
+            Items = batch_neg[batch_list, student_max]
+            return Items, None, [time()-start, 0, 0]
     # ----------------------------------------------------------------------------
     # method 5
     def oriKD(self, batch_neg, batch_pos, batch_users, student_score, teacher_score):

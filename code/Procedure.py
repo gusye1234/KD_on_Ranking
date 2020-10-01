@@ -43,12 +43,12 @@ def Distill_train(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None)
      negScores_teacher, 
      sam_time) = sampler.UniformSample_DNS_batch(epoch)
 
-    print(f"[pre-sample][{sam_time[0]:.1f}={time2str(sam_time[1:])}]")
+    # print(f"[pre-sample][{sam_time[0]:.1f}={time2str(sam_time[1:])}]")
     users = S[:, 0].long()
     posItems = S[:, 1].long()
     # negItems = S[:, 2:].long()
     negItems = negItems.long()
-    print(negItems.shape, negScores.shape, negScores_teacher.shape)
+    # print(negItems.shape, negScores.shape, negScores_teacher.shape)
     (users, 
      posItems, 
      negItems, 
@@ -79,14 +79,12 @@ def Distill_train(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None)
         # batch_neg, sam_time = DNS_sampling_batch(batch_neg, batch_scores)
         batch_neg, weights, samtime= sampler.Sample(batch_neg, batch_pos,batch_users,batch_scores, batch_scores_teacher)
         cri = bpr.stageOne(batch_users, batch_pos, batch_neg, weights=weights)
-        item_count[batch_neg] += 1
         DNS_time1 += sam_time[0]
         DNS_time2 += sam_time[2]
         aver_loss += cri
         if world.tensorboard:
             w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
-    np.savetxt(os.path.join(world.CODE_PATH, f"counts/count_{world.dataset}_{world.DNS_K}.txt"),item_count.numpy())
-    print(f"[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
+    # print(f"[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
     aver_loss = aver_loss / total_batch
     return f"BPR[aver loss{aver_loss:.3e}]"      
 
@@ -98,7 +96,7 @@ def Logits_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
     sample_time = 0.
     dns_time = 0.
     S,sam_time = sampler.PerSample()
-    print(f"Logits[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
+    # print(f"Logits[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
     users = torch.Tensor(S[:, 0]).long()
     posItems = torch.Tensor(S[:, 1]).long()
     negItems = torch.Tensor(S[:, 2:]).long()
@@ -122,7 +120,7 @@ def Logits_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
             w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
             w.add_scalar(f'Weights/mean_weights', weight_mean, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
     aver_loss = aver_loss / total_batch
-    print(f"DNS[{dns_time}]; {time2str(sample_time)}")
+    # print(f"DNS[{dns_time}]; {time2str(sample_time)}")
     return f"BPR[aver loss{aver_loss:.3e}]"   
         
         
@@ -251,11 +249,11 @@ def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, neg_k=1, w=No
     bpr: utils.BPRLoss = loss_class
     S,sam_time = UniformSample_DNS_deter(dataset, world.DNS_K)
     # S,sam_time = UniformSample_DNS_neg_multi(allusers, dataset, world.DNS_K)
-    print(f"DNS[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
+    # print(f"DNS[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
     users = torch.Tensor(S[:, 0]).long()
     posItems = torch.Tensor(S[:, 1]).long()
     negItems = torch.Tensor(S[:, 2:]).long()
-    print(negItems.shape)
+    # print(negItems.shape)
     users = users.to(world.DEVICE)
     posItems = posItems.to(world.DEVICE)
     negItems = negItems.to(world.DEVICE)
@@ -283,7 +281,7 @@ def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, neg_k=1, w=No
         aver_loss += cri
         if world.tensorboard:
             w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
-    print(f"DNS[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
+    # print(f"DNS[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
     aver_loss = aver_loss / total_batch
     return f"[BPR[aver loss{aver_loss:.3e}]"
 
@@ -297,7 +295,7 @@ def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=N
     bpr: utils.BPRLoss = loss_class
     allusers = list(range(dataset.n_users))
     S, sam_time = UniformSample_original(allusers, dataset)
-    print(f"BPR[sample time][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
+    # print(f"BPR[sample time][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
     users = torch.Tensor(S[:, 0]).long()
     posItems = torch.Tensor(S[:, 1]).long()
     negItems = torch.Tensor(S[:, 2]).long()

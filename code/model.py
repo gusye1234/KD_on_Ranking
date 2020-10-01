@@ -251,7 +251,7 @@ class LightEmb(LightGCN):
         )
         self._user_tea = self.tea.embedding_user.weight.data
         self._item_tea = self.tea.embedding_item.weight.data
-        print(self._user_tea.requires_grad, self._item_tea.requires_grad)
+        # print(self._user_tea.requires_grad, self._item_tea.requires_grad)
         # not grad needed for teacher
         
         

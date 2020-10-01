@@ -18,9 +18,9 @@ CODE_PATH = os.path.join(ROOT_PATH, 'code')
 FILE_PATH = os.path.join(CODE_PATH, 'checkpoints')
 BOARD_PATH = os.path.join(CODE_PATH, 'runs')
 DATA_PATH = os.path.join(ROOT_PATH, 'data')
-DISTILL = False
 args = parse_args()
 ARGS = args
+EMBEDDING = args.embedding
 
 config = {}
 all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon']

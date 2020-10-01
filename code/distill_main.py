@@ -30,22 +30,43 @@ print(f"[SEED:{world.SEED}]")
 import register
 from register import dataset
 
-world.cprint('student')
-student_model = register.MODELS[world.model_name](world.config, dataset)
-
+# ----------------------------------------------------------------------------
+# loading teacher
+teacher_file = utils.getFileName(world.model_name,
+                                 world.dataset,
+                                 world.config['teacher_dim'],
+                                 layers=world.config['teacher_layer'])
+teacher_weight_file = os.path.join(world.FILE_PATH, teacher_file)
+print('-------------------------')
+world.cprint("loaded teacher weights from")
+print(teacher_weight_file)
+print('-------------------------')
 teacher_config = utils.getTeacherConfig(world.config)
 world.cprint('teacher')
-teacher_model = register.MODELS[world.model_name](teacher_config, dataset, fix=True)
+teacher_model = register.MODELS[world.model_name](teacher_config,
+                                                  dataset,
+                                                  fix=True)
 teacher_model.eval()
+utils.load(teacher_model, teacher_weight_file)
 
-# procedure = register.DISTILL_TRAIN['experiment']
-procedure = register.DISTILL_TRAIN['logits']
+
+
+
+world.cprint('student')
+if world.EMBEDDING:
+    student_model = register.MODELS['leb'](world.config, dataset, teacher_model)
+    print(student_model)
+else:
+    student_model = register.MODELS[world.model_name](world.config, dataset)
+
+procedure = register.DISTILL_TRAIN['experiment']
+# procedure = register.DISTILL_TRAIN['logits']
 bpr = utils.BPRLoss(student_model, world.config)
-# sampler = DistillSample(dataset,
-#                         student_model,
-#                         teacher_model,
-#                         world.DNS_K)
-sampler = LogitsSample(dataset, student_model, teacher_model, world.DNS_K)
+sampler = DistillSample(dataset,
+                        student_model,
+                        teacher_model,
+                        world.DNS_K)
+# sampler = LogitsSample(dataset, student_model, teacher_model, world.DNS_K)
 
 # ----------------------------------------------------------------------------
 # get names
@@ -55,21 +76,6 @@ print('-------------------------')
 print(f"load and save student to {weight_file}")
 if world.LOAD:
     utils.load(student_model, weight_file)
-world.cprint("LOAD student")
-teacher_file = utils.getFileName(world.model_name, world.dataset, world.config['teacher_dim'], layers=world.config['teacher_layer'])
-teacher_weight_file = os.path.join(world.FILE_PATH, teacher_file)
-# ----------------------------------------------------------------------------
-# loading teacher
-print('-------------------------')
-world.cprint("loaded teacher weights from") 
-print(teacher_weight_file)
-print('-------------------------')
-try:
-    teacher_model.load_state_dict(torch.load(teacher_weight_file))
-except RuntimeError:
-    teacher_model.load_state_dict(torch.load(teacher_weight_file, map_location=torch.device('cpu')))
-except FileNotFoundError:
-    raise FileNotFoundError(f"{teacher_weight_file} NOT exist!!!")
 # ----------------------------------------------------------------------------
 # migrate and stuffs
 earlystop = utils.EarlyStop(patience=60, model=student_model, filename=weight_file)
@@ -96,13 +102,15 @@ pprint(results)
 # start training
 try:
     for epoch in range(world.TRAIN_epochs):
-        print('======================')
-        print(f'EPOCH[{epoch}/{world.TRAIN_epochs}]')
+
         start = time.time()
         output_information = procedure(dataset, student_model, sampler, bpr, epoch, w=w)
-        
-        print(f'[saved][{output_information}]')
-        print(f"[TOTAL TIME] {time.time() - start}")
+
+        # print(f'[saved][{output_information}]')
+        # print(f"[TOTAL TIME] {time.time() - start}")
+        print(
+            f'EPOCH[{epoch}/{world.TRAIN_epochs}][{time.time() - start}] - {output_information}'
+        )
         if epoch %3 == 0:
             start = time.time()
             cprint("[TEST]")

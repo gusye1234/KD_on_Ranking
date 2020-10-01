@@ -55,4 +55,5 @@ def parse_args():
     parser.add_argument('--beta', type=float, default=1e-4, help='The beta')
     parser.add_argument('--p0', type=float, default=1.0, help='The p0')
     parser.add_argument('--one', type=int, default=0, help='The p0')
+    parser.add_argument('--embedding', type=int, default=0, help='embedding distillation')
     return parser.parse_args()
