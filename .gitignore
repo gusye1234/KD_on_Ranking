@@ -9,6 +9,7 @@
 *.cfg
 *.sqlite3
 *.so
+.*
 checkpoints/
 runs/
 **/counts/
