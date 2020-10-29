@@ -28,74 +28,14 @@ item_count = None
 
 CORES = multiprocessing.cpu_count() // 2
 
-# ----------------------------------------------------------------------------
-def Distill_train(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
-    global item_count
-    sampler : DistillSample
-    bpr: utils.BPRLoss = loss_class
-    student.train()
-    if item_count is None:
-        item_count = torch.zeros(dataset.m_items)
-    # S,sam_time = UniformSample_DNS_deter(allusers, dataset, world.DNS_K)
-    (S,
-     negItems,
-     negScores, 
-     negScores_teacher, 
-     sam_time) = sampler.UniformSample_DNS_batch(epoch)
 
-    # print(f"[pre-sample][{sam_time[0]:.1f}={time2str(sam_time[1:])}]")
-    users = S[:, 0].long()
-    posItems = S[:, 1].long()
-    # negItems = S[:, 2:].long()
-    negItems = negItems.long()
-    # print(negItems.shape, negScores.shape, negScores_teacher.shape)
-    (users, 
-     posItems, 
-     negItems, 
-     negScores,
-     negScores_teacher) = utils.TO(users, posItems, negItems, negScores, negScores_teacher)
-    (users, 
-     posItems, 
-     negItems, 
-     negScores,
-     negScores_teacher) = utils.shuffle(users, posItems, negItems, negScores, negScores_teacher)
-    total_batch = len(users) // world.config['bpr_batch_size'] + 1
-    DNS_time = time()
-    DNS_time1 = 0.
-    DNS_time2 = 0.
-    aver_loss = 0.
-    for (batch_i,
-         (batch_users,
-          batch_pos,
-          batch_neg,
-          batch_scores,
-          batch_scores_teacher)) in enumerate(utils.minibatch(users,
-                                                              posItems,
-                                                              negItems,
-                                                              negScores,
-                                                              negScores_teacher,
-                                                              batch_size=world.config['bpr_batch_size'])):
-        # batch_neg, sam_time = DNS_sampling_neg(batch_users, batch_neg, dataset, Recmodel)
-        # batch_neg, sam_time = DNS_sampling_batch(batch_neg, batch_scores)
-        batch_neg, weights, samtime= sampler.Sample(batch_neg, batch_pos,batch_users,batch_scores, batch_scores_teacher)
-        cri = bpr.stageOne(batch_users, batch_pos, batch_neg, weights=weights)
-        DNS_time1 += sam_time[0]
-        DNS_time2 += sam_time[2]
-        aver_loss += cri
-        if world.tensorboard:
-            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
-    # print(f"[sampling][{time()-DNS_time:.1f}={DNS_time1:.2f}+{DNS_time2:.2f}]")
-    aver_loss = aver_loss / total_batch
-    return f"BPR[aver loss{aver_loss:.3e}]"      
-
-def Logits_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
+def Distill_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
     sampler : LogitsSample
     bpr: utils.BPRLoss = loss_class
     student.train()
     aver_loss = 0
-    sample_time = 0.
-    dns_time = 0.
-    S,sam_time = sampler.PerSample()
+    with timer(name='sampling neg'):
+        S = sampler.PerSample()
     # print(f"Logits[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
     users = torch.Tensor(S[:, 0]).long()
     posItems = torch.Tensor(S[:, 1]).long()
@@ -103,28 +43,30 @@ def Logits_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
     total_batch = len(users) // world.config['bpr_batch_size'] + 1
     users, posItems, negItems = utils.TO(users, posItems, negItems)
     users, posItems, negItems = utils.shuffle(users, posItems, negItems)
-    for (batch_i, 
-         (batch_users, 
+    for (batch_i,
+         (batch_users,
           batch_pos,
           batch_neg)) in enumerate(utils.minibatch(users,
                                                    posItems,
                                                    negItems,
                                                    batch_size=world.config['bpr_batch_size'])):
-        (batch_neg, weights, KD_loss, sam_time), time = timer(sampler.Sample, batch_users, batch_pos, batch_neg)
-        dns_time += time
-        sample_time += sam_time
-        weight_mean = torch.mean(weights).item()
-        cri = bpr.stageOne(batch_users, batch_pos, batch_neg, add_loss=KD_loss, weights=weights)        
+        with timer(name="KD"):
+            batch_neg, weights, KD_loss = sampler.Sample(batch_users, batch_pos, batch_neg, epoch)
+        with timer(name="BP"):
+            cri = bpr.stageOne(batch_users, batch_pos, batch_neg, add_loss=KD_loss, weights=weights)
         aver_loss += cri
+        # Additional section------------------------
+        #
+        # ------------------------------------------
         if world.tensorboard:
             w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
-            w.add_scalar(f'Weights/mean_weights', weight_mean, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
     aver_loss = aver_loss / total_batch
-    # print(f"DNS[{dns_time}]; {time2str(sample_time)}")
-    return f"BPR[aver loss{aver_loss:.3e}]"   
-        
-        
-        
+    info = f"{timer.dict()}[BPR loss{aver_loss:.3e}]"
+    timer.zero()
+    return info
+
+
+
 # ******************************************************************************
 # ============================================================================**
 # ============================================================================**
@@ -140,10 +82,10 @@ def test_one_batch(X):
         pre.append(ret['precision'])
         recall.append(ret['recall'])
         ndcg.append(utils.NDCGatK_r(groundTrue,r,k))
-    return {'recall':np.array(recall), 
-            'precision':np.array(pre), 
+    return {'recall':np.array(recall),
+            'precision':np.array(pre),
             'ndcg':np.array(ndcg)}
-    
+
 def test_one_batch_ONE(X):
     sorted_items = X[0].numpy()
     groundTrue = X[1]
@@ -152,9 +94,9 @@ def test_one_batch_ONE(X):
     for k in world.topks:
         ndcg.append(utils.NDCGatK_r_ONE(r, k))
         hr.append(utils.HRatK_ONE(r, k))
-    return {'ndcg':np.array(ndcg), 
+    return {'ndcg':np.array(ndcg),
             'hr':np.array(hr)}
-            
+
 def Test(dataset, Recmodel, epoch, w=None, multicore=0):
     u_batch_size = world.config['test_u_batch_size']
     dataset: utils.BasicDataset

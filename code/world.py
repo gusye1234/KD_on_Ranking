@@ -11,6 +11,8 @@ import torch
 from enum import Enum
 from parse import parse_args
 import multiprocessing
+import sys
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 ROOT_PATH = '/Users/gus/Desktop/KD'
@@ -18,9 +20,13 @@ CODE_PATH = os.path.join(ROOT_PATH, 'code')
 FILE_PATH = os.path.join(CODE_PATH, 'checkpoints')
 BOARD_PATH = os.path.join(CODE_PATH, 'runs')
 DATA_PATH = os.path.join(ROOT_PATH, 'data')
+
+sys.path.append(os.path.join(CODE_PATH, 'sources'))
+
 args = parse_args()
 ARGS = args
 EMBEDDING = args.embedding
+# CD = False
 
 config = {}
 all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon']
@@ -55,7 +61,7 @@ SEED = args.seed
 dataset = args.dataset
 model_name = args.model
 # if dataset not in all_dataset:
-    # raise NotImplementedError(f"Haven't supported {dataset} yet!, try {all_dataset}")
+# raise NotImplementedError(f"Haven't supported {dataset} yet!, try {all_dataset}")
 if model_name not in all_models:
     raise NotImplementedError(f"Haven't supported {model_name} yet!, try {all_models}")
 
@@ -79,15 +85,15 @@ tensorboard = args.tensorboard
 comment = args.comment
 if ONE:
     dataset = dataset + "_one"
-    topks = [25,50,100]
+    topks = [50]
 # let pandas shut up
 from warnings import simplefilter
 simplefilter(action="ignore", category=FutureWarning)
 
 
 
-def cprint(words : str):
-    print(f"\033[0;30;43m{words}\033[0m")
+def cprint(words : str, ends='\n'):
+    print(f"\033[0;30;43m{words}\033[0m", end=ends)
 
 logo = r"""
 ██╗      ██████╗ ███╗   ██╗

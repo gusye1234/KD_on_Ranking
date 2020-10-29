@@ -83,14 +83,14 @@ try:
         # print(f'[saved][{output_information}]')
         # print(f"[TOTAL TIME] {time.time() - start}")
         print(
-            f'EPOCH[{epoch}/{world.TRAIN_epochs}][{time.time() - start}] - {output_information}'
+            f'EPOCH[{epoch}/{world.TRAIN_epochs}][{time.time() - start:.2f}] - {output_information}'
         )
         if epoch %3 == 0:
             start = time.time()
-            cprint("[TEST]")
+            cprint("[TEST]", ends=':')
             results = Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
             pprint(results)
-            print(f"[TEST TIME] {time.time() - start}")
+            # print(f"[TEST TIME] {time.time() - start}")
             if earlystop.step(epoch,results):
                 print("trigger earlystop")
                 print(f"best epoch:{earlystop.best_epoch}")

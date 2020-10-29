@@ -7,7 +7,7 @@ import Procedure
 from pprint import pprint
 
 data_path = os.path.join(
-                    world.DATA_PATH, 
+                    world.DATA_PATH,
                     world.dataset)
 if world.ONE:
     # data_path = data_path + "_one"
@@ -21,7 +21,7 @@ else:
     else:
         dataset = dataloader.Loader(path=data_path)
 
-if world.DISTILL:
+if world.EMBEDDING:
     print('===========DISTILL================')
     pprint(world.config)
     print(">>beta:", world.beta)
@@ -57,6 +57,6 @@ TRAIN = {
 }
 
 DISTILL_TRAIN = {
-    'experiment': Procedure.Distill_train,
-    'logits' : Procedure.Logits_DNS
+    'experiment': Procedure.Distill_DNS,
+    'distill': Procedure.Distill_DNS
 }

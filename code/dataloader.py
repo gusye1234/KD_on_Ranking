@@ -143,7 +143,7 @@ class Loader(BasicDataset):
 
         # (users,items), bipartite graph
         self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
-                                      shape=(self.__n_users, self.__m_items))
+                                      shape=(self.__n_users, self.__m_items), dtype='int')
         self.users_D = np.array(self.UserItemNet.sum(axis=1)).squeeze()
         self.users_D[self.users_D == 0.] = 1
         self.items_D = np.array(self.UserItemNet.sum(axis=0)).squeeze()
@@ -153,7 +153,7 @@ class Loader(BasicDataset):
         self.__testDict = self.build_test()
         if world.ALLDATA:
             self.UserItemNet = csr_matrix((np.ones(len(self._trainUser)), (self._trainUser, self._trainItem)),
-                                      shape=(self.__n_users, self.__m_items))
+                                      shape=(self.__n_users, self.__m_items), dtype='int')
         print(f"{world.dataset} is ready to go")
 
     @property
@@ -447,7 +447,7 @@ class LastFM(BasicDataset):
             dense = self.Graph.to_dense()
             D = torch.sum(dense, dim=1).float()
             D[D==0.] = 1.
-            D_sqrt = torch.sqrt(D).unsqueeze(dim=0)
+            D_sqrt = torch.sqrt(D).unsqueeze(dim=0).float()
             dense = dense/D_sqrt
             dense = dense/D_sqrt.t()
             index = dense.nonzero()

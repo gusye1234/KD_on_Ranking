@@ -21,20 +21,22 @@ from dataloader import BasicDataset
 # ============================================================================
 # pair loss
 class BPRLoss:
-    def __init__(self, 
-                 recmodel : PairWiseModel, 
+    def __init__(self,
+                 recmodel : PairWiseModel,
                  config : dict):
         self.model = recmodel
         self.weight_decay = config['decay']
         self.lr = config['lr']
         self.opt = optim.Adam(recmodel.parameters(), lr=self.lr)
-        
-    def stageOne(self, 
-                 users, 
-                 pos, 
-                 neg, 
-                 weights=None, 
+
+    def stageOne(self,
+                 users,
+                 pos,
+                 neg,
+                 weights=None,
                  add_loss : torch.Tensor=None):
+        # if world.CD == True:
+        #     return self.cd_loss(users, pos, weights, add_loss)
         loss, reg_loss = self.model.bpr_loss(users, pos, neg, weights=weights)
         reg_loss = reg_loss*self.weight_decay
         loss = loss + reg_loss
@@ -45,11 +47,13 @@ class BPRLoss:
         self.opt.zero_grad()
         loss.backward()
         self.opt.step()
-        
+
         return loss.cpu().item()
 
-def getTestweight(users   : Tensor, 
-                  items   : Tensor, 
+
+
+def getTestweight(users   : Tensor,
+                  items   : Tensor,
                   dataset : BasicDataset):
     """
         designed only for levave-one-out data
@@ -65,9 +69,9 @@ def getTestweight(users   : Tensor,
     index = (test_items == items)
     weights = np.ones_like(users)
     weights[index] = world.ARGS.testweight
-    
+
     return Tensor(weights).to(world.DEVICE)
-    
+
 # ============================================================================
 # ============================================================================
 # utils
@@ -82,7 +86,7 @@ class EarlyStop:
         self.best_epoch = 0
         self.mean = 0
         self.sofar = 1
-    
+
     def step(self, epoch, performance):
         if performance['ndcg'][-1] < self.mean:
             self.suffer += 1
@@ -102,7 +106,7 @@ class EarlyStop:
             return False
 
 def set_seed(seed):
-    np.random.seed(seed)   
+    np.random.seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
@@ -148,18 +152,18 @@ def shuffle(*arrays, **kwargs):
         return result, shuffle_indices
     else:
         return result
-    
+
 def TO(*tensors, **kwargs):
     results = []
     for tensor in tensors:
         results.append(tensor.to(world.DEVICE))
     return results
-    
+
 def shapes(*tensors):
     shape = [tensor.size() for tensor in tensors]
     strs = [str(sh) for sh in shape]
     print(" : ".join(strs))
-        
+
 
 def getTeacherConfig(config : dict):
     teacher_dict = config.copy()
@@ -193,6 +197,66 @@ class Timer:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.tape.append(Timer.time()-self.start)
 
+
+class timer:
+    """
+    Time context manager for code block
+        with timer():
+            do something
+        timer.get()
+    """
+    from time import time
+    TAPE = [-1]  # global time record
+    NAMED_TAPE = {}
+
+    @staticmethod
+    def get():
+        if len(timer.TAPE) > 1:
+            return timer.TAPE.pop()
+        else:
+            return -1
+
+    @staticmethod
+    def dict(select_keys=None):
+        hint = "|"
+        if select_keys is None:
+            for key, value in timer.NAMED_TAPE.items():
+                hint = hint + f"{key}:{value:.2f}|"
+        else:
+            for key in select_keys:
+                value = timer.NAMED_TAPE[key]
+                hint = hint + f"{key}:{value:.2f}|"
+        return hint
+
+    @staticmethod
+    def zero(select_keys=None):
+        if select_keys is None:
+            for key, value in timer.NAMED_TAPE.items():
+                timer.NAMED_TAPE[key] = 0
+        else:
+            for key in select_keys:
+                timer.NAMED_TAPE[key] = 0
+
+    def __init__(self, tape=None, **kwargs):
+        if kwargs.get('name'):
+            timer.NAMED_TAPE[kwargs['name']] = timer.NAMED_TAPE[
+                kwargs['name']] if timer.NAMED_TAPE.get(kwargs['name']) else 0.
+            self.named = kwargs['name']
+        else:
+            self.named = False
+            self.tape = tape or timer.TAPE
+
+    def __enter__(self):
+        self.start = timer.time()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.named:
+            timer.NAMED_TAPE[self.named] += timer.time() - self.start
+        else:
+            self.tape.append(timer.time() - self.start)
+
+
 def load(model, file):
     try:
         model.load_state_dict(torch.load(file))
@@ -200,14 +264,14 @@ def load(model, file):
         model.load_state_dict(torch.load(file, map_location=torch.device('cpu')))
     except FileNotFoundError:
         raise FileNotFoundError(f"{file} NOT exist!!!")
-    
+
 def combinations(start, end, com_num=2):
-    """get all the combinations of [start, end]""" 
+    """get all the combinations of [start, end]"""
     from itertools import combinations
     index = np.arange(start, end)
     return np.asanyarray(list(combinations(index, com_num)))
-    
-    
+
+
 # ============================================================================
 # ============================================================================
 # metrics
@@ -241,7 +305,7 @@ def NDCGatK_r(test_data,r,k):
     """
     assert len(r) == len(test_data)
     pred_data = r[:, :k]
-    
+
     test_matrix = np.zeros((len(pred_data), k))
     for i, items in enumerate(test_data):
         length = k if k <= len(items) else len(items)
@@ -261,7 +325,7 @@ def NDCGatK_r_ONE(r,k):
     rel_i = 1 or 0, so 2^{rel_i} - 1 = 1 or 0
     """
     pred_data = r[:, :k]
-    
+
     idcg = 1
     dcg = pred_data*(1./np.log2(np.arange(2, k + 2)))
     dcg = np.sum(dcg, axis=1)
