@@ -158,7 +158,7 @@ class DistillSample:
         student_neg = batch_neg[batch_list, student_max]
         return student_neg
 
-class LogitsSample:
+class DistillLogits:
     def __init__(self,
                  dataset : BasicDataset,
                  student : PairWiseModel,
@@ -452,49 +452,21 @@ class CD:
 
 
 # ==============================================================
-# NON-EXPERIMENTAL PART                                        =
+# NON-EXPERIMENTAL PART                                        
 # ==============================================================
 
-# ----------------------------------------------------------------------------
+# ----------
 # uniform sample
-def UniformSample_original(users, dataset):
+def UniformSample_original(dataset):
     """
     the original implement of BPR Sampling in LightGCN
     NOTE: we sample a whole epoch data at one time
     :return:
         np.array
     """
-    total_start = time()
-    dataset : BasicDataset
-    user_num = dataset.trainDataSize
-    users = np.random.randint(0, dataset.n_users, user_num)
-    per_user_num = user_num // dataset.n_users + 1
-    allPos = dataset.allPos
-    S = []
-    negItems = []
-    sample_time1 = 0.
-    sample_time2 = 0.
-    BinForUser = np.zeros(shape = (dataset.m_items, )).astype("int")
-    for user in range(dataset.n_users):
-        posForUser = allPos[user]
-        if len(posForUser) == 0:
-            continue
-        BinForUser[:] = 0
-        with timer(name="L"):
-            BinForUser[posForUser] = 1
-            NEGforUser = np.where(BinForUser == 0)[0]
-        for i in range(per_user_num):
-            with timer(name='index'):
-                posindex = np.random.randint(0, len(posForUser))
-                positem = posForUser[posindex]
-                negindex = np.random.randint(0, len(NEGforUser))
-                negitem = NEGforUser[negindex]
-            with timer(name="append"):
-                S.append([user, positem, negitem])
-    print(timer.dict())
-    timer.zero()
-    return np.array(S), [time() - total_start, 0., 0.]
-# ----------------------------------------------------------------------------
+    return UniformSample_DNS_deter(dataset, 1)
+
+# ----------
 # Dns sampling
 def UniformSample_DNS_deter(dataset, dns_k):
     """
@@ -546,85 +518,29 @@ def UniformSample_DNS_deter_python(dataset, dns_k):
     return S, [time() - total_start, 0., 0.]
 
 def DNS_sampling_neg(batch_users, batch_neg, dataset, recmodel):
-    start = time()
-    sam_time1 = time()
     dns_k = world.DNS_K
     with torch.no_grad():
-        sam_time2 = time()
-        NegItems = batch_neg
-        negitem_vector = NegItems.reshape((-1, )) # dns_k * |users|
-        user_vector = batch_users.repeat((dns_k, 1)).t().reshape((-1,))
 
-        scores = recmodel(user_vector, negitem_vector)
-        scores = scores.reshape((-1, dns_k))
+        scores = userAndMatrix(batch_users, batch_neg, recmodel)
 
         _, top1 = scores.max(dim=1)
         idx = torch.arange(len(batch_users)).to(world.DEVICE)
         negitems = NegItems[idx, top1]
-        sam_time2 = time() - sam_time2
-    return negitems, [time() - start, 0, sam_time2]
-# ----------------------------------------------------------------------------
-# batch rating for Dns sampling
-def UniformSample_DNS_batch(dataset, model, dns_k, batch_score_size = 256):
-    """
-    the original implement of BPR Sampling in LightGCN
-    NOTE: we can sample a whole epoch data at one time
-    :return:
-        np.array
-    """
-    with torch.no_grad():
-        total_start = time()
-        dataset : BasicDataset
-        model : PairWiseModel
-        user_num = dataset.trainDataSize
-        per_user_num = user_num // dataset.n_users + 1
-        allPos = dataset.allPos
-        S = []
-        sample_time1 = 0.
-        sample_time2 = 0.
-        BinForUser = np.zeros(shape = (dataset.m_items, )).astype("int")
-        sample_shape = int(dns_k*1.5)+1
-        BATCH_SCORE = None
-        NEG = np.zeros((per_user_num*dataset.n_users, dns_k))
-        SCORES = torch.zeros((per_user_num*dataset.n_users, dns_k))
-        now = 0
-        for user in range(dataset.n_users):
-            start1 = time()
-            if now >= batch_score_size:
-                del BATCH_SCORE
-                BATCH_SCORE = None
-            if BATCH_SCORE is None:
-                left_limit = user+batch_score_size
-                batch_list = torch.arange(user, left_limit) if left_limit <= dataset.n_users else torch.arange(user, dataset.n_users)
-                BATCH_SCORE = model.getUsersRating(batch_list).cpu()
-                now = 0
-            sample_time1 += time()-start1
-            start2 = time()
-            scoreForuser = BATCH_SCORE[now]
-            now += 1
-            posForUser = allPos[user]
-            if len(posForUser) == 0:
-                continue
-            BinForUser[:] = 0
-            BinForUser[posForUser] = 1
-            NEGforUser = np.where(BinForUser == 0)[0]
-            for i in range(per_user_num):
-                posindex = np.random.randint(0, len(posForUser))
-                positem = posForUser[posindex]
-                negindex = np.random.randint(0, len(NEGforUser), size=(dns_k, ))
-                negitems = NEGforUser[negindex]
-                add_pair = [user, positem]
-                NEG[user*per_user_num + i, :] = negitems
-                SCORES[user*per_user_num + i, :] = scoreForuser[negitems]
-                S.append(add_pair)
-            sample_time2 += time() - start2
-    return torch.Tensor(S), torch.from_numpy(NEG),SCORES,[time() - total_start, sample_time1, sample_time2]
+    return negitems
 
-def DNS_sampling_batch(batch_neg, batch_score):
-    start = time()
-    batch_list = torch.arange(0, len(batch_neg))
-    _, index = torch.max(batch_score, dim=1)
-    return batch_neg[batch_list, index], [time()-start, 0, 0]
+if __name__ == "__main__":
+    method = UniformSample_DNS_deter
+    from register import dataset
+    from utils import timer
+    for i in range(10):
+        with timer():
+            method(dataset, 10)
+        print(timer.get())
+
+
+
+
+'''
 # ============================================================================
 # multi-core sampling, not yet
 def UniformSample_DNS_neg_multi(users, dataset, dns_k):
@@ -676,13 +592,4 @@ def UniformSample_user(X):
     add_pair = [user, positem]
     add_pair.extend(negitems)
     return np.array(add_pair).astype('int')
-
-
-if __name__ == "__main__":
-    method = UniformSample_DNS_deter
-    from register import dataset
-    from utils import timer
-    for i in range(10):
-        with timer():
-            method(dataset, 10)
-        print(timer.get())
+'''

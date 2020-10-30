@@ -60,13 +60,10 @@ else:
     student_model = register.MODELS[world.model_name](world.config, dataset)
 
 procedure = register.DISTILL_TRAIN['experiment']
-# procedure = register.DISTILL_TRAIN['logits']
+sampler = register.SAMPLER['sample'](dataset, student_model, teacher_model,
+                                     world.DNS_K)
+
 bpr = utils.BPRLoss(student_model, world.config)
-sampler = DistillSample(dataset,
-                        student_model,
-                        teacher_model,
-                        world.DNS_K)
-# sampler = LogitsSample(dataset, student_model, teacher_model, world.DNS_K)
 
 # ----------------------------------------------------------------------------
 # get names

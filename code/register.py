@@ -4,6 +4,7 @@ import dataloader
 import model
 import utils
 import Procedure
+import sample
 from pprint import pprint
 
 data_path = os.path.join(
@@ -48,6 +49,13 @@ else:
 MODELS = {
     'lgn': model.LightGCN,
     'leb': model.LightEmb
+}
+
+SAMPLER = {
+    'sample' : sample.DistillSample,
+    'logits' : sample.DistillLogits,
+    'RD'     : sample.RD,
+    'CD'     : sample.CD
 }
 
 TRAIN = {
