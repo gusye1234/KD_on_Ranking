@@ -17,7 +17,7 @@ import numpy as np
 from time import time
 from pprint import pprint
 from sample import DistillSample
-from sample import LogitsSample
+from sample import DistillLogits
 from model import PairWiseModel, BasicModel
 from sample import UniformSample_DNS_deter
 from sample import UniformSample_original,DNS_sampling_neg
@@ -29,11 +29,11 @@ CORES = multiprocessing.cpu_count() // 2
 
 
 def Distill_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
-    sampler : LogitsSample
+    sampler : DistillLogits
     bpr: utils.BPRLoss = loss_class
     student.train()
     aver_loss = 0
-    with timer(name='sampling neg'):
+    with timer(name='sampling'):
         S = sampler.PerSample()
     # print(f"Logits[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
     users = torch.Tensor(S[:, 0]).long()

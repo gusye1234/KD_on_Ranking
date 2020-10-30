@@ -16,7 +16,7 @@ import numpy as np
 from world import cprint
 from pprint import pprint
 from tensorboardX import SummaryWriter
-from sample import DistillSample, LogitsSample
+from sample import DistillSample, DistillLogits
 
 # ----------------------------------------------------------------------------
 # global
