@@ -106,8 +106,6 @@ try:
         start = time.time()
         output_information = procedure(dataset, student_model, sampler, bpr, epoch, w=w)
 
-        # print(f'[saved][{output_information}]')
-        # print(f"[TOTAL TIME] {time.time() - start}")
         print(
             f'EPOCH[{epoch}/{world.TRAIN_epochs}][{time.time() - start:.2f}] - {output_information}'
         )
