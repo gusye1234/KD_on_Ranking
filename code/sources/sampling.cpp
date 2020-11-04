@@ -52,7 +52,6 @@ py::array_t<int> create_numpy(int shape1, int shape2, int init){
 // std::vector<std::vector<ui>> sample_negative(int user_num, int item_num,int train_num, std::vector<std::vector<ui>> allPos, int neg_num){
 py::array_t<int> sample_negative(int user_num, int item_num, int train_num, std::vector<std::vector<int>> allPos, int neg_num)
 {
-    std::cout << user_num << ' ' << item_num << ' ' << train_num << ' ' << neg_num << std::endl;
     int perUserNum = (train_num/user_num);
     int row = neg_num + 2;
     py::array_t<int> S_array = py::array_t<int>({user_num * perUserNum, row});
