@@ -226,12 +226,13 @@ def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=N
     Recmodel = recommend_model
     Recmodel.train()
     bpr: utils.BPRLoss = loss_class
-    allusers = list(range(dataset.n_users))
+
     S = UniformSample_original(dataset)
+    S = torch.from_numpy(S).long()
     # print(f"BPR[sample time][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
-    users = torch.Tensor(S[:, 0]).long()
-    posItems = torch.Tensor(S[:, 1]).long()
-    negItems = torch.Tensor(S[:, 2]).long()
+    users    = S[:, 0]
+    posItems = S[:, 1]
+    negItems = S[:, 2]
 
     users = users.to(world.DEVICE)
     posItems = posItems.to(world.DEVICE)
@@ -247,6 +248,7 @@ def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=N
                                                    negItems,
                                                    batch_size=world.config['bpr_batch_size'])):
         if world.ALLDATA:
+            print(world.ALLDATA)
             weights = utils.getTestweight(batch_users, batch_pos, dataset)
         else:
             weights = None

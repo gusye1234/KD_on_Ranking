@@ -72,6 +72,7 @@ TRAIN_epochs = args.epochs
 LOAD = args.load
 PATH = args.path
 ALLDATA = args.alldata
+print(ALLDATA)
 TESTDATA = args.testdata
 ONE = args.one
 if ONE and TESTDATA:

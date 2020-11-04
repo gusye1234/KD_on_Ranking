@@ -14,6 +14,7 @@ try:
     from cppimport import imp_from_filepath
     from os.path import join, dirname
     path = join(dirname(__file__), "sources/sampling.cpp")
+    print(path)
     sampling = imp_from_filepath(path)
     sample_ext = True
 except:
@@ -452,7 +453,7 @@ class CD:
 
 
 # ==============================================================
-# NON-EXPERIMENTAL PART                                        
+# NON-EXPERIMENTAL PART
 # ==============================================================
 
 # ----------
@@ -482,9 +483,9 @@ def UniformSample_DNS_deter(dataset, dns_k):
             allPos,
             dns_k
         )
+        return S
     else:
         return UniformSample_DNS_deter_python(dataset, dns_k)
-    return S
 
 def UniformSample_DNS_deter_python(dataset, dns_k):
     """
@@ -532,9 +533,13 @@ if __name__ == "__main__":
     method = UniformSample_DNS_deter
     from register import dataset
     from utils import timer
-    for i in range(10):
+    for i in range(1):
         with timer():
-            method(dataset, 10)
+            # S = method(dataset, 1)
+            S = UniformSample_original(dataset)
+            print(len(S[S>= dataset.m_items]))
+            S = torch.from_numpy(S).long()
+            print(len(S[S >= dataset.m_items]))
         print(timer.get())
 
 

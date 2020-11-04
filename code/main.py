@@ -15,6 +15,7 @@ import Procedure
 import numpy as np
 from pprint import pprint
 from world import cprint
+import sample
 from tensorboardX import SummaryWriter
 
 # ----------------------------------------------------------------------------
