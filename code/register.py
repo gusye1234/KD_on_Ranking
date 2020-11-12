@@ -22,11 +22,12 @@ else:
     else:
         dataset = dataloader.Loader(path=data_path)
 
-if world.EMBEDDING:
+if world.DISTILL:
     print('===========DISTILL================')
     pprint(world.config)
-    print(">>beta:", world.beta)
-    print(">>DNS K:", world.DNS_K)
+    # print("beta:", world.beta)
+    print("DNS K:", world.DNS_K)
+    print("sample methods:", world.SAMPLE_METHOD)
     print("comment:", world.comment)
     print("tensorboard:", world.tensorboard)
     print("Test Topks:", world.topks)
@@ -65,6 +66,6 @@ TRAIN = {
 }
 
 DISTILL_TRAIN = {
-    'experiment': Procedure.Distill_DNS,
-    'distill': Procedure.Distill_DNS
+    'batch': Procedure.Distill_DNS_yield,
+    'epoch': Procedure.Distill_DNS
 }

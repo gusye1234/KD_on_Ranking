@@ -27,7 +27,6 @@ import register
 from register import dataset
 
 if world.EMBEDDING:
-
     # embedding distillation
     print("distill")
     tea_config = utils.getTeacherConfig(world.config)
@@ -60,7 +59,6 @@ if world.LOAD:
     utils.load(Recmodel, weight_file)
 # ----------------------------------------------------------------------------
 earlystop = utils.EarlyStop(patience=30, model=Recmodel, filename=weight_file)
-Neg_k = 1
 Recmodel = Recmodel.to(world.DEVICE)
 # ----------------------------------------------------------------------------
 # init tensorboard
@@ -79,7 +77,7 @@ try:
     for epoch in range(world.TRAIN_epochs):
 
         start = time.time()
-        output_information = procedure(dataset, Recmodel, bpr, epoch, neg_k=Neg_k,w=w)
+        output_information = procedure(dataset, Recmodel, bpr, epoch,w=w)
 
         # print(f'[saved][{output_information}]')
         # print(f"[TOTAL TIME] {time.time() - start}")

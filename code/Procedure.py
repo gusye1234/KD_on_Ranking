@@ -1,9 +1,4 @@
 '''
-Created on Mar 1, 2020
-Pytorch Implementation of LightGCN in
-Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation
-@author: Jianbai Ye (gusye@mail.ustc.edu.cn)
-
 Design training and test process
 '''
 import os
@@ -19,7 +14,7 @@ from pprint import pprint
 from sample import DistillSample
 from sample import DistillLogits
 from model import PairWiseModel, BasicModel
-from sample import UniformSample_DNS_deter
+from sample import UniformSample_DNS
 from sample import UniformSample_original,DNS_sampling_neg
 from utils import time2str, timer
 
@@ -28,20 +23,60 @@ item_count = None
 CORES = multiprocessing.cpu_count() // 2
 
 
-def Distill_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
+def Distill_DNS_yield(dataset, student, sampler, loss_class, epoch , w=None):
+    """Batch version of Distill_DNS, using a generator to offer samples
+    """
+    sampler : DistillLogits
+    bpr: utils.BPRLoss = loss_class
+    student.train()
+    aver_loss = 0
+    with timer(name='sampling'):
+        S = sampler.PerSample(batch=world.config['bpr_batch_size'])
+    total_batch = dataset.trainDataSize // world.config['bpr_batch_size'] + 1
+    for batch_i, Pairs in enumerate(S):
+        Pairs = torch.from_numpy(Pairs).long().to(world.DEVICE)
+        # print(Pairs.shape)
+        batch_users, batch_pos, batch_neg = Pairs[:, 0], Pairs[:, 1], Pairs[:, 2:]
+        with timer(name="KD"):
+            batch_neg, weights, KD_loss = sampler.Sample(batch_users, batch_pos, batch_neg, epoch)
+        with timer(name="BP"):
+            cri = bpr.stageOne(batch_users, batch_pos, batch_neg, add_loss=KD_loss, weights=weights)
+        aver_loss += cri
+        # Additional section------------------------
+        #
+        # ------------------------------------------
+        if world.tensorboard:
+            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(dataset.trainDataSize / world.config['bpr_batch_size']) + batch_i)
+        del Pairs
+    aver_loss = aver_loss / total_batch
+    info = f"{timer.dict()}[BPR loss{aver_loss:.3e}]"
+    timer.zero()
+    return info
+
+def Distill_DNS(dataset, student, sampler, loss_class, epoch, w=None):
+    """Training procedure for distillation methods
+
+    Args:
+        dataset (BasicDatset): defined in dataloader.BasicDataset, loaded in register.py
+        student (PairWiseModel): recommend model with small dim
+        sampler (DS|DL|RD|CD): tons of distill methods defined in sample.py
+        loss_class (utils.BPRLoss): class to get BPR training loss, and BackPropagation
+        epoch (int): 
+        w (SummaryWriter, optional): Tensorboard writer
+
+    Returns:
+        str: summary of aver loss and running time for one epoch
+    """
     sampler : DistillLogits
     bpr: utils.BPRLoss = loss_class
     student.train()
     aver_loss = 0
     with timer(name='sampling'):
         S = sampler.PerSample()
-    # print(f"Logits[pre-sample][{sam_time[0]:.1f}={sam_time[1]:.2f}+{sam_time[2]:.2f}]")
-    users = torch.Tensor(S[:, 0]).long()
-    posItems = torch.Tensor(S[:, 1]).long()
-    negItems = torch.Tensor(S[:, 2:]).long()
-    total_batch = len(users) // world.config['bpr_batch_size'] + 1
-    users, posItems, negItems = utils.TO(users, posItems, negItems)
+    S = torch.from_numpy(S).long().to(world.DEVICE)
+    users, posItems, negItems = S[:, 0], S[:, 1], S[:, 2:]
     users, posItems, negItems = utils.shuffle(users, posItems, negItems)
+    total_batch = len(users) // world.config['bpr_batch_size'] + 1
     for (batch_i,
          (batch_users,
           batch_pos,
@@ -72,6 +107,8 @@ def Distill_DNS(dataset, student, sampler, loss_class, epoch, neg_k=1, w=None):
 # ******************************************************************************
 # TEST
 def test_one_batch(X):
+    """helper function for Test
+    """
     sorted_items = X[0].numpy()
     groundTrue = X[1]
     r = utils.getLabel(groundTrue, sorted_items)
@@ -86,6 +123,8 @@ def test_one_batch(X):
             'ndcg':np.array(ndcg)}
 
 def test_one_batch_ONE(X):
+    """helper function for Test, customized for leave-one-out dataset
+    """
     sorted_items = X[0].numpy()
     groundTrue = X[1]
     r = utils.getLabel_ONE(groundTrue, sorted_items)
@@ -97,6 +136,18 @@ def test_one_batch_ONE(X):
             'hr':np.array(hr)}
 
 def Test(dataset, Recmodel, epoch, w=None, multicore=0):
+    """evaluate models
+
+    Args:
+        dataset (BasicDatset): defined in dataloader.BasicDataset, loaded in register.py
+        Recmodel (PairWiseModel):
+        epoch (int): 
+        w (SummaryWriter, optional): Tensorboard writer
+        multicore (int, optional): The num of cpu cores for testing. Defaults to 0.
+
+    Returns:
+        dict: summary of metrics
+    """
     u_batch_size = world.config['test_u_batch_size']
     dataset: utils.BasicDataset
     testDict: dict = dataset.testDict
@@ -184,11 +235,23 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
             pool.close()
         return results
 
-def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
+def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, w=None):
+    """Traininf procedure for DNS algorithms 
+
+    Args:
+        dataset (BasicDatset): defined in dataloader.BasicDataset, loaded in register.py
+        recommend_model (PairWiseModel): recommend model with small dim
+        loss_class (utils.BPRLoss): class to get BPR training loss, and BackPropagation
+        epoch (int): 
+        w (SummaryWriter, optional): Tensorboard writer
+
+    Returns:
+        str: summary of aver loss and running time for one epoch
+    """
     Recmodel: PairWiseModel = recommend_model
     Recmodel.train()
     bpr: utils.BPRLoss = loss_class
-    S = UniformSample_DNS_deter(dataset, world.DNS_K)
+    S = UniformSample_DNS(dataset, world.DNS_K)
     users = torch.Tensor(S[:, 0]).long()
     posItems = torch.Tensor(S[:, 1]).long()
     negItems = torch.Tensor(S[:, 2:]).long()
@@ -219,7 +282,19 @@ def BPR_train_DNS_neg(dataset, recommend_model, loss_class, epoch, neg_k=1, w=No
     return f"[BPR[aver loss{aver_loss:.3e}]"
 
 
-def BPR_train_original(dataset, recommend_model, loss_class, epoch, neg_k=1, w=None):
+def BPR_train_original(dataset, recommend_model, loss_class, epoch, w=None):
+    """Traininf procedure for uniform BPR
+
+    Args:
+        dataset (BasicDatset): defined in dataloader.BasicDataset, loaded in register.py
+        recommend_model (PairWiseModel): recommend model with small dim
+        loss_class (utils.BPRLoss): class to get BPR training loss, and BackPropagation
+        epoch (int): 
+        w (SummaryWriter, optional): Tensorboard writer
+
+    Returns:
+        str: summary of aver loss and running time for one epoch
+    """
     global item_count
     if item_count is None:
         item_count = torch.zeros(dataset.m_items)

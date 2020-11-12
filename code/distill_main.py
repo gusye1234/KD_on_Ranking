@@ -1,7 +1,4 @@
 '''
-Created on Mar 1, 2020
-Pytorch Implementation of LightGCN in
-Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation
 @author: Jianbai Ye (gusye@mail.ustc.edu.cn)
 
 Distill model
@@ -17,7 +14,9 @@ from world import cprint
 from pprint import pprint
 from tensorboardX import SummaryWriter
 from sample import DistillSample, DistillLogits
+import tracemalloc
 
+tracemalloc.start()
 # ----------------------------------------------------------------------------
 # global
 world.DISTILL = True
@@ -48,10 +47,10 @@ teacher_model = register.MODELS[world.model_name](teacher_config,
                                                   fix=True)
 teacher_model.eval()
 utils.load(teacher_model, teacher_weight_file)
+# ----------------------------------------------------------------------------
 
-
-
-
+# ----------------------------------------------------------------------------
+# loading student
 world.cprint('student')
 if world.EMBEDDING:
     student_model = register.MODELS['leb'](world.config, dataset, teacher_model)
@@ -59,12 +58,12 @@ if world.EMBEDDING:
 else:
     student_model = register.MODELS[world.model_name](world.config, dataset)
 
-procedure = register.DISTILL_TRAIN['experiment']
-sampler = register.SAMPLER['sample'](dataset, student_model, teacher_model,
-                                     world.DNS_K)
+# ----------------------------------------------------------------------------
+# choosing paradigms
+procedure = register.DISTILL_TRAIN['epoch']
+sampler = register.SAMPLER[world.SAMPLE_METHOD](dataset, student_model, teacher_model,world.DNS_K)
 
 bpr = utils.BPRLoss(student_model, world.config)
-
 # ----------------------------------------------------------------------------
 # get names
 file = utils.getFileName(world.model_name, world.dataset, world.config['latent_dim_rec'], layers=world.config['lightGCN_n_layers'])
@@ -74,13 +73,11 @@ print(f"load and save student to {weight_file}")
 if world.LOAD:
     utils.load(student_model, weight_file)
 # ----------------------------------------------------------------------------
-# migrate and stuffs
-earlystop = utils.EarlyStop(patience=60, model=student_model, filename=weight_file)
-Neg_k = 1
+# to device
 student_model = student_model.to(world.DEVICE)
 teacher_model = teacher_model.to(world.DEVICE)
 # ----------------------------------------------------------------------------
-# init tensorboard
+# training setting
 if world.tensorboard:
     w : SummaryWriter = SummaryWriter(
         os.path.join(
@@ -90,6 +87,9 @@ if world.tensorboard:
 else:
     w = None
     world.cprint("not enable tensorflowboard")
+earlystop = utils.EarlyStop(patience=60,
+                            model=student_model,
+                            filename=weight_file)
 # ----------------------------------------------------------------------------
 # test teacher
 cprint("[TEST Teacher]")
@@ -106,6 +106,8 @@ try:
         print(
             f'EPOCH[{epoch}/{world.TRAIN_epochs}][{time.time() - start:.2f}] - {output_information}'
         )
+        # snapshot = tracemalloc.take_snapshot()
+        # utils.display_top(snapshot)
         if epoch %3 == 0:
             start = time.time()
             cprint("[TEST]", ends=':')

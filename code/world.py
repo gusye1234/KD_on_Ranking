@@ -1,8 +1,4 @@
 '''
-Created on Mar 1, 2020
-Pytorch Implementation of LightGCN in
-Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation
-
 @author: Jianbai Ye (gusye@mail.ustc.edu.cn)
 '''
 
@@ -26,6 +22,8 @@ sys.path.append(os.path.join(CODE_PATH, 'sources'))
 args = parse_args()
 ARGS = args
 EMBEDDING = args.embedding
+SAMPLE_METHOD = args.sampler
+# print(SAMPLE_METHOD)
 # CD = False
 
 config = {}
@@ -72,7 +70,6 @@ TRAIN_epochs = args.epochs
 LOAD = args.load
 PATH = args.path
 ALLDATA = args.alldata
-print(ALLDATA)
 TESTDATA = args.testdata
 ONE = args.one
 if ONE and TESTDATA:
