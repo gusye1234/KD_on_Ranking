@@ -4,7 +4,7 @@ import multiprocessing
 import numpy as np
 from torch.nn.functional import softplus
 from time import time
-from utils import Timer, shapes, combinations, timer
+from utils import shapes, combinations, timer
 from world import cprint
 from model import PairWiseModel, LightGCN
 from dataloader import BasicDataset
@@ -283,7 +283,6 @@ class RD:
 
         return negitems, None, RD_loss
 
-
 class CD:
     def __init__(self,
                  dataset : BasicDataset,
@@ -364,7 +363,8 @@ class CD:
         idx = torch.arange(len(batch_users))
         negitems = batch_neg[idx, top1]
         # ----
-        random_samples = self.rank_sample(batch_users, MODEL=MODEL)
+        with timer(name="CD sample"):
+            random_samples = self.rank_sample(batch_users, MODEL=MODEL)
         # samples_vector = random_samples.reshape((-1, ))
         samples_scores_T = userAndMatrix(batch_users, random_samples, TEACHER)
         samples_scores_S = userAndMatrix(batch_users, random_samples, STUDENT)
