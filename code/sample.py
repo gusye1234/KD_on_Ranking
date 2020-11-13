@@ -40,7 +40,7 @@ def userAndMatrix(batch_users, batch_items, model):
     dim_item = batch_items.shape[-1]
     vector_user = batch_users.repeat((dim_item, 1)).t().reshape((-1, ))
     vector_item = batch_items.reshape((-1, ))
-    return model(vector_user, vector_item).reshape((-1, dim_item)).to(world.DEVICE)
+    return model(vector_user, vector_item).reshape((-1, dim_item))
 
 class DistillSample:
     def __init__(self,
