@@ -52,5 +52,5 @@ def parse_args():
     parser.add_argument('--p0', type=float, default=1.0, help='The p0')
     parser.add_argument('--one', type=int, default=1, help='leave one out')
     parser.add_argument('--embedding', type=int, default=0, help='enable embedding distillation')
-    parser.add_argument('--sampler', type=str, default='sample')
+    parser.add_argument('--sampler', type=str, default='combine')
     return parser.parse_args()

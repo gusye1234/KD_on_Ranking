@@ -59,9 +59,13 @@ else:
     student_model = register.MODELS[world.model_name](world.config, dataset)
 
 # ----------------------------------------------------------------------------
+# to device
+student_model = student_model.to(world.DEVICE)
+teacher_model = teacher_model.to(world.DEVICE)
+# ----------------------------------------------------------------------------
 # choosing paradigms
 procedure = register.DISTILL_TRAIN['epoch']
-sampler = register.SAMPLER[world.SAMPLE_METHOD](dataset, student_model, teacher_model,world.DNS_K)
+sampler = register.SAMPLER[world.SAMPLE_METHOD](dataset, student_model, teacher_model, world.DNS_K)
 
 bpr = utils.BPRLoss(student_model, world.config)
 # ----------------------------------------------------------------------------
@@ -72,10 +76,6 @@ print('-------------------------')
 print(f"load and save student to {weight_file}")
 if world.LOAD:
     utils.load(student_model, weight_file)
-# ----------------------------------------------------------------------------
-# to device
-student_model = student_model.to(world.DEVICE)
-teacher_model = teacher_model.to(world.DEVICE)
 # ----------------------------------------------------------------------------
 # training setting
 if world.tensorboard:
