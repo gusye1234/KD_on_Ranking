@@ -248,9 +248,9 @@ class RD:
 
                 dynamic_weights[:, col] = dynamic.squeeze()
             if self._weight_renormalize:
-                return F.normalize(static_weights*dynamic_weights, p=1, dim=1)
+                return F.normalize(static_weights*dynamic_weights, p=1, dim=1).to(world.DEVICE)
             else:
-                return static_weights*dynamic_weights
+                return (static_weights*dynamic_weights).to(world.DEVICE)
 
 
     def Sample(self, batch_users, batch_pos, batch_neg, epoch, dynamic_samples=None):
