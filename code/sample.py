@@ -276,7 +276,7 @@ class RD:
                                 epoch,
                                 dynamic_scores)
         # RD_loss
-        RD_loss = weights*torch.log(torch.sigmoid(S_score_in_T))
+        RD_loss = -(weights*torch.log(torch.sigmoid(S_score_in_T)))
         # print("RD shape", RD_loss.shape)
         RD_loss = RD_loss.sum(1)
         RD_loss = self.teach_alpha*RD_loss.mean()
