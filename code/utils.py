@@ -173,13 +173,6 @@ def time2str(sam_time : list):
         sam_copy += '+' + f"{t:.2f}"
     return sam_copy[1:]
 
-def timer(*args):
-    func = args[0]
-    start = time()
-    results = func(*args[1:])
-    end = time() - start
-    return (results, end)
-
 class Timer:
     """
     Time context manager for code block
@@ -238,9 +231,12 @@ class timer:
             timer.NAMED_TAPE[kwargs['name']] = timer.NAMED_TAPE[
                 kwargs['name']] if timer.NAMED_TAPE.get(kwargs['name']) else 0.
             self.named = kwargs['name']
+            if kwargs.get("group"):
+                #TODO: add group function
         else:
             self.named = False
             self.tape = tape or timer.TAPE
+            
 
     def __enter__(self):
         self.start = timer.time()

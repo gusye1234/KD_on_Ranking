@@ -358,7 +358,6 @@ class CD:
         dns_k = self.dns_k
         # ----
         student_scores = userAndMatrix(batch_users, batch_neg, STUDENT)
-
         _, top1 = student_scores.max(dim=1)
         idx = torch.arange(len(batch_users))
         negitems = batch_neg[idx, top1]
