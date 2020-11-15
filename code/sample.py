@@ -322,7 +322,7 @@ class CD:
     def rank_sample(self, batch_users, MODEL):
         if MODEL is None:
             return self.random_sample(len(batch_users))
-        MODEL : LightGCN
+        MODEL: LightGCN
         all_items = self.dataset.m_items
         batch_size = len(batch_users)
         rank_samples = torch.zeros(batch_size, self.n_distill)
@@ -332,14 +332,19 @@ class CD:
             for i in range(batch_size):
                 rating = items_score[i]
                 while True:
-                    random_index = torch.from_numpy(np.random.randint(all_items, size=(all_items,))).long()
-                    compared = (rating[index] > rating[random_index])
-                    if torch.sum(compared) < self.n_distill:
-                        continue
-                    else:
+                    with timer(name="compare"):
+                        random_index = torch.from_numpy(
+                            np.random.randint(all_items,size=(all_items, ))).long()
+                        compared = (rating[index] > rating[random_index])
+                    with timer(name="index"):
                         sampled_items = index[compared]
-                        sampled_items = torch.topk(sampled_items, k=self.n_distill)[1]
-                        break
+                        if len(sampled_items) < self.n_distill:
+                            continue
+                        else:
+                            with timer(name="topk"):
+                                sampled_items = torch.topk(sampled_items,
+                                                           k=self.n_distill)[1]
+                            break
                 rank_samples[i] = sampled_items
         return rank_samples.to(world.DEVICE).long()
 

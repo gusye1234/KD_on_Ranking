@@ -233,6 +233,7 @@ class timer:
             self.named = kwargs['name']
             if kwargs.get("group"):
                 #TODO: add group function
+                pass
         else:
             self.named = False
             self.tape = tape or timer.TAPE
