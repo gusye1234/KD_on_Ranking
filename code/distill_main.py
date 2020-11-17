@@ -13,7 +13,7 @@ import numpy as np
 from world import cprint
 from pprint import pprint
 from tensorboardX import SummaryWriter
-from sample import DistillSample, DistillLogits
+from sample import DistillSample
 import tracemalloc
 
 tracemalloc.start()

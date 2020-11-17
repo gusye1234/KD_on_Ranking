@@ -54,7 +54,6 @@ MODELS = {
 
 SAMPLER = {
     'combine' : sample.DistillSample,
-    'logits' : sample.DistillLogits,
     'RD'     : sample.RD,
     'CD'     : sample.CD
 }

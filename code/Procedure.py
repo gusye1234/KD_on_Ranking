@@ -12,7 +12,7 @@ import numpy as np
 from time import time
 from pprint import pprint
 from sample import DistillSample
-from sample import DistillLogits
+# from sample import DistillLogits
 from model import PairWiseModel, BasicModel
 from sample import UniformSample_DNS
 from sample import UniformSample_original,DNS_sampling_neg

@@ -69,21 +69,37 @@ class DistillSample:
         self.method = 'combine'
         self.Sample = self.convex_combine
         cprint(f"Using {self.method}")
-        # self.Sample = self.max_min
         self.dns_k = dns_k
-        self.start = False
-        self.start_epoch = world.startepoch
-        self.T = world.T
         self.soft = Softmax(dim=1)
-        self.scale = 1
-        self.t1 = 1
-        self.t2 = 2.5
+        self._generateTopK()
 
     def PerSample(self, batch=None):
         if batch is not None:
             return UniformSample_DNS_yield(self.dataset, self.dns_k, batch_size=batch)
         else:
             return UniformSample_DNS(self.dataset, self.dns_k)
+
+    def _generateTopK(self, batch_size=256):
+        if self.RANK is None:
+            with torch.no_grad():
+                self.RANK = torch.zeros((self.dataset.n_users, self.topk))
+                for user in range(0, self.dataset.n_users, batch_size):
+                    end = min(user + batch_size, self.dataset.n_users)
+                    scores = self.teacher.getUsersRating(
+                        torch.arange(user, end))
+                    pos_item = self.dataset.getUserPosItems(
+                        np.arange(user, end))
+
+                    # -----
+                    exclude_user, exclude_item = [], []
+                    for i, items in enumerate(pos_item):
+                        exclude_user.extend([i] * len(items))
+                        exclude_item.extend(items)
+                    scores[exclude_user, exclude_item] = -1e5
+                    # -----
+                    _, neg_item = torch.topk(scores, self.topk)
+                    self.RANK[user:user + batch_size] = neg_item
+        self.RANK = self.RANK.cpu().int().numpy()
 
     # ----------------------------------------------------------------------------
     # method 1
@@ -105,60 +121,6 @@ class DistillSample:
         _, student_max = torch.max(scores, dim=1)
         student_neg = batch_neg[batch_list, student_max]
         return student_neg
-
-class DistillLogits:
-    def __init__(self,
-                 dataset : BasicDataset,
-                 student : PairWiseModel,
-                 teacher : PairWiseModel,
-                 dns_k : int,
-                 beta = world.beta):
-        self.dataset = dataset
-        self.student = student
-        self.teacher = teacher
-        self.beta = beta
-        self.dns_k = dns_k
-        self.Sample = self.logits
-        # self.Sample = self.ranking
-        self.sigmoid = Sigmoid()
-        self.t = 1
-        self.pairs = combinations(0, dns_k)
-        world.cprint("======LOGITS baby====")
-
-    def PerSample(self, batch=None):
-        if batch is not None:
-            return UniformSample_DNS_yield(self.dataset,
-                                           self.dns_k,
-                                           batch_size=batch)
-        else:
-            return UniformSample_DNS(self.dataset, self.dns_k)
-
-    # ----------------------------------------------------------------------------
-    # trivial method
-    def logits(self, batch_users, batch_pos, batch_neg, epoch):
-        """
-        with grad
-        """
-        STUDENT = self.student
-        TEACHER = self.teacher
-        dns_k = self.dns_k
-
-        student_scores = userAndMatrix(batch_users, batch_neg, STUDENT)
-        student_pos_scores = STUDENT(batch_users, batch_pos)
-
-        teacher_scores = userAndMatrix(batch_users, batch_neg, TEACHER)
-        teacher_pos_scores = TEACHER(batch_users, batch_pos)
-
-        _, top1 = student_scores.max(dim=1)
-        idx = torch.arange(len(batch_users))
-        negitems = batch_neg[idx, top1]
-        weights = self.sigmoid((teacher_pos_scores - teacher_scores[idx, top1])/self.t)
-
-        KD_loss = self.beta*(1/2)*(
-            (student_pos_scores - student_scores.t()) - (teacher_pos_scores - teacher_scores.t())
-            ).norm(2).pow(2)
-        KD_loss = KD_loss/float(len(batch_users))
-        return negitems, weights, KD_loss
 
 class RD:
     def __init__(self,
@@ -375,8 +337,8 @@ class CD:
         weights = torch.sigmoid((samples_scores_T + self.t2)/self.t1)
         inner = torch.sigmoid(samples_scores_S)
         CD_loss = -(
-            weights*torch.log(inner + 1e-10) + \
-            (1-weights)*torch.log(1 - inner + 1e-10)
+            weights*torch.log(inner + 1e-10) + 
+                (1-weights)*torch.log(1 - inner + 1e-10)
         )
         # print(CD_loss.shape)
         CD_loss = CD_loss.sum(1).mean()
@@ -434,7 +396,7 @@ def UniformSample_DNS_yield(dataset,
             )
 
 
-def UniformSample_DNS(dataset, dns_k):
+def UniformSample_DNS(dataset, dns_k, add_pos = None):
     """Generate train samples(sorted)
 
     Args:
@@ -446,6 +408,10 @@ def UniformSample_DNS(dataset, dns_k):
     """
     dataset : BasicDataset
     allPos = dataset.allPos
+    if add_pos is not None:
+        assert len(allPos) == len(add_pos)
+        for i in range(len(allPos)):
+            allPos.append(np.asarray(add_pos, dtype=np.int))
     if sample_ext:
         S = sampling.sample_negative(
             dataset.n_users,

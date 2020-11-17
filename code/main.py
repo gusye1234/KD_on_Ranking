@@ -23,6 +23,7 @@ utils.set_seed(world.SEED)
 print(f"[SEED:{world.SEED}]")
 # ----------------------------------------------------------------------------
 # init model
+world.DISTILL = False
 import register
 from register import dataset
 
