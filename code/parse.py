@@ -32,7 +32,7 @@ def parse_args():
                         help="@k test list")
     parser.add_argument('--tensorboard', type=int,default=1,
                         help="enable tensorboard")
-    parser.add_argument('--comment', type=str,default="torch")
+    parser.add_argument('--comment', type=str,default="")
     parser.add_argument('--load', type=int,default=0)
     parser.add_argument('--epochs', type=int,default=1000)
     parser.add_argument('--multicore', type=int, default=0, help='whether we use multiprocessing or not in test')

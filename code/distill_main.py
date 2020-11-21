@@ -20,6 +20,11 @@ tracemalloc.start()
 # ----------------------------------------------------------------------------
 # global
 world.DISTILL = True
+if len(world.comment) == 0:
+    comment = f"{world.SAMPLE_METHOD}"
+    if world.EMBEDDING:
+        comment = comment+"-embed"
+    world.comment = comment
 # ----------------------------------------------------------------------------
 # set seed
 utils.set_seed(world.SEED)

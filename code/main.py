@@ -24,6 +24,11 @@ print(f"[SEED:{world.SEED}]")
 # ----------------------------------------------------------------------------
 # init model
 world.DISTILL = False
+if len(world.comment) == 0:
+    comment = f"{world.method}"
+    if world.EMBEDDING:
+        comment = comment + "-embed"
+    world.comment = comment
 import register
 from register import dataset
 
