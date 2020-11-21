@@ -16,6 +16,7 @@ CODE_PATH = os.path.join(ROOT_PATH, 'code')
 FILE_PATH = os.path.join(CODE_PATH, 'checkpoints')
 BOARD_PATH = os.path.join(CODE_PATH, 'runs')
 DATA_PATH = os.path.join(ROOT_PATH, 'data')
+LOG_PATH = os.path.join(ROOT_PATH, 'log')
 
 sys.path.append(os.path.join(CODE_PATH, 'sources'))
 

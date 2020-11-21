@@ -93,7 +93,7 @@ earlystop = utils.EarlyStop(patience=60,
 # ----------------------------------------------------------------------------
 # test teacher
 cprint("[TEST Teacher]")
-results = Procedure.Test(dataset, teacher_model, 0, None, world.config['multicore'])
+results = Procedure.Test(dataset, teacher_model, 0, None, world.config['multicore'], valid=False)
 pprint(results)
 # ----------------------------------------------------------------------------
 # start training
@@ -111,7 +111,7 @@ try:
         if epoch %3 == 0:
             start = time.time()
             cprint("[TEST]", ends=':')
-            results = Procedure.Test(dataset, student_model, epoch, w, world.config['multicore'])
+            results = Procedure.Test(dataset, student_model, epoch, w, world.config['multicore'], valid=True)
             pprint(results)
             # print(f"[TEST TIME] {time.time() - start}")
             if earlystop.step(epoch,results):
@@ -122,3 +122,18 @@ try:
 finally:
     if world.tensorboard:
         w.close()
+
+best_result = earlystop.best_result
+torch.save(earlystop.best_model, weight_file)
+student_model.load_state_dict(earlystop.best_model)
+results = Procedure.Test(dataset,
+                         student_model,
+                         world.TRAIN_epochs,
+                         valid=False)
+log_file = os.path.join(world.LOG_PATH, utils.getLogFile())
+with open(log_file, 'a') as f:
+    f.write("#######################################\n")
+    f.write(f"SEED: {world.SEED}, DNS_K: {str(world.DNS_K)}, "\
+            f"flag: {file.split('.')[0]}. \nLR: {world.config['lr']}, DECAY: {world.config['decay']}\n")
+    f.write(f"%%Valid%%\n{best_result}\n%%TEST%%\n{results}\n")
+    f.close()

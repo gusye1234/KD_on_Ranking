@@ -135,7 +135,7 @@ def test_one_batch_ONE(X):
     return {'ndcg':np.array(ndcg),
             'hr':np.array(hr)}
 
-def Test(dataset, Recmodel, epoch, w=None, multicore=0):
+def Test(dataset, Recmodel, epoch, w=None, multicore=0, valid=True):
     """evaluate models
 
     Args:
@@ -150,7 +150,11 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
     """
     u_batch_size = world.config['test_u_batch_size']
     dataset: utils.BasicDataset
-    testDict: dict = dataset.testDict
+    testDict: dict
+    if valid:
+        testDict = dataset.validDict
+    else:
+        testDict = dataset.testDict
     Recmodel: model.LightGCN
     # eval mode with no dropout
     Recmodel.eval()
@@ -202,9 +206,9 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
             results['hr'] /= float(len(users))
             results['ndcg'] /= float(len(users))
             if w:
-                w.add_scalars(f'Test/HR@{world.topks}',
+                w.add_scalars(f'Valid/HR@{world.topks}',
                             {str(world.topks[i]): results['hr'][i] for i in range(len(world.topks))}, epoch)
-                w.add_scalars(f'Test/NDCG@{world.topks}',
+                w.add_scalars(f'Valid/NDCG@{world.topks}',
                             {str(world.topks[i]): results['ndcg'][i] for i in range(len(world.topks))}, epoch)
         else:
             results = {'precision': np.zeros(len(world.topks)),
@@ -225,11 +229,11 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
             results['precision'] /= float(len(users))
             results['ndcg'] /= float(len(users))
             if w:
-                w.add_scalars(f'Test/Recall@{world.topks}',
+                w.add_scalars(f'Valid/Recall@{world.topks}',
                             {str(world.topks[i]): results['recall'][i] for i in range(len(world.topks))}, epoch)
-                w.add_scalars(f'Test/Precision@{world.topks}',
+                w.add_scalars(f'Valid/Precision@{world.topks}',
                             {str(world.topks[i]): results['precision'][i] for i in range(len(world.topks))}, epoch)
-                w.add_scalars(f'Test/NDCG@{world.topks}',
+                w.add_scalars(f'Valid/NDCG@{world.topks}',
                             {str(world.topks[i]): results['ndcg'][i] for i in range(len(world.topks))}, epoch)
         if multicore == 1:
             pool.close()

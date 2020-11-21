@@ -75,6 +75,7 @@ class EarlyStop:
     def __init__(self, patience, model, filename):
         self.patience = patience
         self.model = model
+        self.best_model = model.state_dict()
         self.filename = filename
         self.suffer = 0
         self.best = 0
@@ -90,7 +91,9 @@ class EarlyStop:
                 return True
             self.sofar += 1
             self.mean = self.mean*(self.sofar - 1)/self.sofar + performance['ndcg'][-1]/self.sofar
-            print(f"no good so far {self.suffer}:{self.mean}")
+            print(
+                f"******************Suffer {performance['ndcg'][-1]}:{self.mean}"
+            )
         else:
             self.suffer = 0
             self.mean = performance['ndcg'][-1]
@@ -98,7 +101,7 @@ class EarlyStop:
             self.best = performance['ndcg'][-1]
             self.best_result = performance
             self.best_epoch = epoch
-            torch.save(self.model.state_dict(), self.filename)
+            self.best_model = self.model.state_dict()
             return False
 
 def set_seed(seed):
@@ -115,6 +118,12 @@ def getFileName(model_name, dataset,rec_dim, layers=None):
         assert layers is not None
         file = f"lgn-{dataset}-{layers}-{rec_dim}.pth.tar"
     return file
+
+def getLogFile():
+    model = world.model_name
+    comment = world.comment
+    dataset = world.dataset
+    return f"{dataset}-{model}-{comment}.txt"
 
 def minibatch(*tensors, **kwargs):
 
@@ -173,19 +182,6 @@ def time2str(sam_time : list):
         sam_copy += '+' + f"{t:.2f}"
     return sam_copy[1:]
 
-class Timer:
-    """
-    Time context manager for code block
-    """
-    from time import time
-    def __init__(self, tape):
-        self.tape = tape
-    def __enter__(self):
-        self.start = Timer.time()
-        return self
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.tape.append(Timer.time()-self.start)
-
 
 class timer:
     """
@@ -237,7 +233,7 @@ class timer:
         else:
             self.named = False
             self.tape = tape or timer.TAPE
-            
+
 
     def __enter__(self):
         self.start = timer.time()

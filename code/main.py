@@ -27,6 +27,7 @@ world.DISTILL = False
 import register
 from register import dataset
 
+
 if world.EMBEDDING:
     # embedding distillation
     print("distill")
@@ -59,7 +60,7 @@ print(f"load and save to {weight_file}")
 if world.LOAD:
     utils.load(Recmodel, weight_file)
 # ----------------------------------------------------------------------------
-earlystop = utils.EarlyStop(patience=30, model=Recmodel, filename=weight_file)
+earlystop = utils.EarlyStop(patience=50, model=Recmodel, filename=weight_file)
 Recmodel = Recmodel.to(world.DEVICE)
 # ----------------------------------------------------------------------------
 # init tensorboard
@@ -80,22 +81,35 @@ try:
         start = time.time()
         output_information = procedure(dataset, Recmodel, bpr, epoch,w=w)
 
-        # print(f'[saved][{output_information}]')
-        # print(f"[TOTAL TIME] {time.time() - start}")
         print(
             f'EPOCH[{epoch}/{world.TRAIN_epochs}][{time.time() - start:.2f}] - {output_information}'
         )
-        if epoch %3 == 0:
-            start = time.time()
-            cprint("[TEST]", ends=':')
-            results = Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
-            pprint(results)
-            # print(f"[TEST TIME] {time.time() - start}")
-            if earlystop.step(epoch,results):
-                print("trigger earlystop")
-                print(f"best epoch:{earlystop.best_epoch}")
-                print(f"best results:{earlystop.best_result}")
-                break
+
+        cprint("TEST", ends=': ')
+        results = Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'], valid=True)
+        pprint(results)
+        if earlystop.step(epoch, results):
+            print("trigger earlystop")
+            print(f"best epoch:{earlystop.best_epoch}")
+            print(f"best results:{earlystop.best_result}")
+            break
 finally:
     if world.tensorboard:
         w.close()
+
+best_result = earlystop.best_result
+torch.save(earlystop.best_model, weight_file)
+Recmodel.load_state_dict(earlystop.best_model)
+results = Procedure.Test(dataset,
+                         Recmodel,
+                         world.TRAIN_epochs,
+                         valid=False)
+log_file = os.path.join(
+    world.LOG_PATH, utils.getLogFile()
+)
+with open(log_file, 'a') as f:
+    f.write("#######################################\n")
+    f.write(f"SEED: {world.SEED}, DNS_K: {str(world.DNS_K)}, "\
+            f"flag: {file.split('.')[0]}. \nLR: {world.config['lr']}, DECAY: {world.config['decay']}\n")
+    f.write(f"%%Valid%%\n{best_result}\n%%TEST%%\n{results}\n")
+    f.close()

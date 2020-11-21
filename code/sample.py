@@ -71,7 +71,7 @@ class DistillSample:
         cprint(f"Using {self.method}")
         self.dns_k = dns_k
         self.soft = Softmax(dim=1)
-        self._generateTopK()
+        # self._generateTopK()
 
     def PerSample(self, batch=None):
         if batch is not None:
