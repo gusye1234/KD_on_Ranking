@@ -493,7 +493,7 @@ def DNS_sampling_neg(batch_users, batch_neg, dataset, recmodel):
 
         _, top1 = scores.max(dim=1)
         idx = torch.arange(len(batch_users)).to(world.DEVICE)
-        negitems = NegItems[idx, top1]
+        negitems = batch_neg[idx, top1]
     return negitems
 
 if __name__ == "__main__":
