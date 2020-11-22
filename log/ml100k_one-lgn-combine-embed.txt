@@ -5,3 +5,11 @@ LR: 0.001, DECAY: 0.0001
 {'hr': array([0.30965005]), 'ndcg': array([0.08947365])}
 %%TEST%%
 {'hr': array([0.2757158]), 'ndcg': array([0.08518703])}
+#######################################
+SEED: 2020, DNS_K: 8, Stop at: 0/1
+flag: lgn-ml100k_one-2-5. 
+LR: 0.001, DECAY: 0.0001
+%%Valid%%
+{'hr': array([0.30965005]), 'ndcg': array([0.08947365])}
+%%TEST%%
+{'hr': array([0.2757158]), 'ndcg': array([0.08518703])}

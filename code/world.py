@@ -59,6 +59,8 @@ SEED = args.seed
 
 dataset = args.dataset
 model_name = args.model
+if model_name == 'lgn' and args.layer==0:
+    model_name = 'mf'
 # if dataset not in all_dataset:
 # raise NotImplementedError(f"Haven't supported {dataset} yet!, try {all_dataset}")
 if model_name not in all_models:

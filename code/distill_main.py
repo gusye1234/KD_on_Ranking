@@ -138,7 +138,7 @@ results = Procedure.Test(dataset,
 log_file = os.path.join(world.LOG_PATH, utils.getLogFile())
 with open(log_file, 'a') as f:
     f.write("#######################################\n")
-    f.write(f"SEED: {world.SEED}, DNS_K: {str(world.DNS_K)}, "\
+    f.write(f"SEED: {world.SEED}, DNS_K: {str(world.DNS_K)}, Stop at: {earlystop.best_epoch+1}/{world.TRAIN_epochs}\n"\
             f"flag: {file.split('.')[0]}. \nLR: {world.config['lr']}, DECAY: {world.config['decay']}\n")
     f.write(f"%%Valid%%\n{best_result}\n%%TEST%%\n{results}\n")
     f.close()
