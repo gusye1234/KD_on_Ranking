@@ -120,7 +120,7 @@ def getFileName(model_name, dataset,rec_dim, layers=None):
     return file
 
 def getLogFile():
-    model = world.model_name
+    model = world.model_method
     comment = world.comment
     dataset = world.dataset
     return f"{dataset}-{model}-{comment}.txt"
