@@ -14,13 +14,10 @@ if world.ONE:
     # data_path = data_path + "_one"
     print("{leave-one-out}:", data_path)
 
-if world.dataset == 'lastfm':
-    dataset = dataloader.LastFM(path=data_path)
+if world.ONE:
+    dataset = dataloader.LoaderOne(path=data_path)
 else:
-    if world.ONE:
-        dataset = dataloader.LoaderOne(path=data_path)
-    else:
-        dataset = dataloader.Loader(path=data_path)
+    dataset = dataloader.Loader(path=data_path)
 
 if world.DISTILL:
     print('===========DISTILL================')

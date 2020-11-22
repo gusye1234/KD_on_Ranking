@@ -79,11 +79,14 @@ class Loader(BasicDataset):
         self.__n_users = 0
         self.__m_items = 0
         train_file = path + '/train.txt'
+        valid_file = path + '/valid.txt'
         test_file = path + '/test.txt'
         self.path = path
         trainUniqueUsers, trainItem, trainUser = [], [], []
+        validUniqueUsers, validItem, validUser = [], [], []
         testUniqueUsers, testItem, testUser = [], [], []
         self.__trainsize = 0
+        self.validDataSize = 0
         self.testDataSize = 0
 
         with open(train_file) as f:
@@ -102,11 +105,30 @@ class Loader(BasicDataset):
         self.trainUser = np.array(trainUser)
         self.trainItem = np.array(trainItem)
 
-        with open(test_file) as f:
+        with open(valid_file) as f:
             for l in f.readlines():
                 if len(l) > 0:
                     l = l.strip('\n').split(' ')
                     items = [int(i) for i in l[1:]]
+                    uid = int(l[0])
+                    validUniqueUsers.append(uid)
+                    validUser.extend([uid] * len(items))
+                    validItem.extend(items)
+                    self.__m_items = max(self.__m_items, max(items))
+                    self.__n_users = max(self.__n_users, uid)
+                    self.validDataSize += len(items)
+        self.validUniqueUsers = np.array(validUniqueUsers)
+        self.validUser = np.array(validUser)
+        self.validItem = np.array(validItem)
+
+        with open(test_file) as f:
+            for l in f.readlines():
+                if len(l) > 0:
+                    l = l.strip('\n').split(' ')
+                    try:
+                        items = [int(i) for i in l[1:]]
+                    except:
+                        print("user data error", l)
                     uid = int(l[0])
                     testUniqueUsers.append(uid)
                     testUser.extend([uid] * len(items))
@@ -120,22 +142,25 @@ class Loader(BasicDataset):
         self.testUser = np.array(testUser)
         self.testItem = np.array(testItem)
 
-        if world.ALLDATA:
-            self._trainUser = self.trainUser
-            self._trainItem = self.trainItem
-            self.trainUser = np.concatenate([self.trainUser, self.testUser])
-            self.trainItem = np.concatenate([self.trainItem, self.testItem])
-            self.__trainsize += self.testDataSize
-        elif world.TESTDATA:
-            self.__trainsize = self.testDataSize
-            self.trainUser = self.testUser
-            self.trainItem  = self.testItem
+        # if world.ALLDATA:
+        #     self._trainUser = self.trainUser
+        #     self._trainItem = self.trainItem
+        #     self.trainUser = np.concatenate([self.trainUser, self.testUser])
+        #     self.trainItem = np.concatenate([self.trainItem, self.testItem])
+        #     self.__trainsize += self.testDataSize
+        # elif world.TESTDATA:
+        #     self.__trainsize = self.testDataSize
+        #     self.trainUser = self.testUser
+        #     self.trainItem  = self.testItem
 
         self.Graph = None
         print(f"({self.n_users} X {self.m_items})")
         print(f"{self.trainDataSize} interactions for training")
+        print(f"{self.validDataSize} interactions for training")
         print(f"{self.testDataSize} interactions for testing")
-        print(f"{world.dataset} Sparsity : {(self.trainDataSize + self.testDataSize) / self.n_users / self.m_items}")
+        print(
+            f"{world.dataset} Sparsity : {(self.trainDataSize + self.validDataSize + self.testDataSize) / self.n_users / self.m_items}"
+        )
 
         # (users,items), bipartite graph
         self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
@@ -146,7 +171,8 @@ class Loader(BasicDataset):
         self.items_D[self.items_D == 0.] = 1.
         # pre-calculate
         self.__allPos = self.getUserPosItems(list(range(self.__n_users)))
-        self.__testDict = self.build_test()
+        self.__testDict = self.build_dict(self.testUser, self.testItem)
+        self.__validDict = self.build_dict(self.validUser, self.validItem)
         if world.ALLDATA:
             self.UserItemNet = csr_matrix((np.ones(len(self._trainUser)), (self._trainUser, self._trainItem)),
                                       shape=(self.__n_users, self.__m_items), dtype='int')
@@ -233,26 +259,10 @@ class Loader(BasicDataset):
 
             if self.split == True:
                 self.Graph = self._split_A_hat(norm_adj)
-                print("done split matrix")
             else:
                 self.Graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
                 self.Graph = self.Graph.coalesce().to(world.DEVICE)
-                print("don't split the matrix")
         return self.Graph
-
-    def build_test(self):
-        """
-        return:
-            dict: {user: [items]}
-        """
-        test_data = {}
-        for i, item in enumerate(self.testItem):
-            user = self.testUser[i]
-            if test_data.get(user):
-                test_data[user].append(item)
-            else:
-                test_data[user] = [item]
-        return test_data
 
     def build_dict(self, users, items):
         data = {}
@@ -282,6 +292,14 @@ class Loader(BasicDataset):
         for user in users:
             posItems.append(self.UserItemNet[user].nonzero()[1])
         return posItems
+
+    @property
+    def testDict(self):
+        return self.__testDict
+
+    @property
+    def validDict(self):
+        return self.__validDict
 # ----------------------------------------------------------------------------
 class LoaderOne(Loader):
     def __init__(self,

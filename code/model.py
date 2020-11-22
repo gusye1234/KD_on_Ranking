@@ -83,14 +83,13 @@ class LightGCN(BasicModel):
             if self.config['pretrain'] == 0:
                 nn.init.xavier_uniform_(self.embedding_user.weight, gain=1)
                 nn.init.xavier_uniform_(self.embedding_item.weight, gain=1)
-                print('use xavier initilizer')
+                # print('use xavier initilizer')
             else:
                 self.embedding_user.weight.data.copy_(torch.from_numpy(self.config['user_emb']))
                 self.embedding_item.weight.data.copy_(torch.from_numpy(self.config['item_emb']))
-                print('use pretarined data')
+                # print('use pretarined data')
         self.f = nn.Sigmoid()
         self.Graph = self.dataset.getSparseGraph()
-        print(f"lgn is already to go(dropout:{self.config['dropout']})")
 
         # print("save_txt")
     def __dropout_x(self, x, keep_prob):

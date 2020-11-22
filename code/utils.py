@@ -183,6 +183,95 @@ def time2str(sam_time : list):
     return sam_copy[1:]
 
 
+def _loo_split_dataset(train_f, test_f):
+    train = {}
+    test = {}
+    with open(train_f, 'r') as f:
+        for line in f.readlines():
+            if len(line) > 0:
+                line = line.strip('\n').split()
+                item = [int(i) for i in line[1:]]
+                user = int(line[0])
+                train[user] = item
+    with open(test_f, 'r') as f:
+        for line in f.readlines():
+            if len(line) > 0:
+                line = line.strip('\n').split()
+                item = [int(i) for i in line[1:]]
+                user = int(line[0])
+                test[user] = item
+    for key in list(test):
+        train[key] = train[key] + test[key]
+
+    all_data = train
+    train_seq = []
+    valid_seq = []
+    test_seq = []
+    users_list = sorted(list(train))
+    for user in users_list:
+        user_item = all_data[user]
+        assert len(user_item)
+        for t_item in user_item[:-2]:
+            train_seq.append((user, t_item, 1))
+        valid_seq.append((user, user_item[-2], 1))
+        test_seq.append((user, user_item[-1], 1))
+    train_file = "bptrain.txt"
+    valid_file = "bpvalid.txt"
+    test_file = "bytest.txt"
+    with open(train_file, 'w') as f:
+        for t_data in train_seq:
+            f.write(f"{t_data[0]} {t_data[1]} {1}\n")
+    with open(valid_file, 'w') as f:
+        for t_data in valid_seq:
+            f.write(f"{t_data[0]} {t_data[1]} {1}\n")
+    with open(test_file, 'w') as f:
+        for t_data in test_seq:
+            f.write(f"{t_data[0]} {t_data[1]} {1}\n")
+
+def _split_dataset(train_f, ratio=.1):
+    train = {}
+    with open(train_f, 'r') as f:
+        for line in f.readlines():
+            if len(line) > 0:
+                line = line.strip('\n').split()
+                item = [int(i) for i in line[1:]]
+                user = int(line[0])
+                train[user] = item
+    valid = {}
+    for user in list(train):
+        items = np.array(train[user]).astype('int')
+        valid_num = round(ratio * len(items))
+        if valid_num > 0:
+            index = np.random.choice(
+                np.arange(len(items)), size=(valid_num, ), replace=False
+            )
+            train_index = np.ones_like(items).astype('bool')
+            train_index[index] = False
+            train_items = items[train_index]
+            valid_items = items[~train_index]
+            train[user] = train_items
+            valid[user] = valid_items
+        else:
+            print(f"{user} has no items in VALID")
+
+    train_file = "bptrain.txt"
+    valid_file = "bpvalid.txt"
+    with open(train_file, 'w') as f:
+        users = sorted(list(train))
+        for user in users:
+            f.write(f"{user}")
+            for u_item in train[user]:
+                f.write(f" {int(u_item)}")
+            f.write('\n')
+    with open(valid_file, 'w') as f:
+        users = sorted(list(valid))
+        for user in users:
+            f.write(f"{user}")
+            for u_item in valid[user]:
+                f.write(f" {int(u_item)}")
+            f.write('\n')
+
+
 class timer:
     """
     Time context manager for code block

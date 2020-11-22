@@ -65,7 +65,7 @@ print(f"load and save to {weight_file}")
 if world.LOAD:
     utils.load(Recmodel, weight_file)
 # ----------------------------------------------------------------------------
-earlystop = utils.EarlyStop(patience=50, model=Recmodel, filename=weight_file)
+earlystop = utils.EarlyStop(patience=100, model=Recmodel, filename=weight_file)
 Recmodel = Recmodel.to(world.DEVICE)
 # ----------------------------------------------------------------------------
 # init tensorboard

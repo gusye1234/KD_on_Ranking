@@ -28,7 +28,7 @@ def parse_args():
                         help="available datasets: [lastfm, gowalla, yelp2018, amazon]")
     parser.add_argument('--path', type=str,default="./checkpoints",
                         help="path to save weights")
-    parser.add_argument('--topks', nargs='?',default="[10, 25,50]",
+    parser.add_argument('--topks', nargs='?',default="[10,25,50]",
                         help="@k test list")
     parser.add_argument('--tensorboard', type=int,default=1,
                         help="enable tensorboard")
@@ -50,7 +50,7 @@ def parse_args():
     parser.add_argument('--T', type=float, default=1.0, help='The temperature for teacher distribution')
     parser.add_argument('--beta', type=float, default=1e-4, help='The beta')
     parser.add_argument('--p0', type=float, default=1.0, help='The p0')
-    parser.add_argument('--one', type=int, default=1, help='leave one out')
+    parser.add_argument('--one', type=int, default=0, help='leave one out')
     parser.add_argument('--embedding', type=int, default=0, help='enable embedding distillation')
     parser.add_argument('--sampler', type=str, default='combine')
     return parser.parse_args()
