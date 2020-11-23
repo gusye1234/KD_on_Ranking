@@ -92,7 +92,7 @@ if world.tensorboard:
 else:
     w = None
     world.cprint("not enable tensorflowboard")
-earlystop = utils.EarlyStop(patience=100,
+earlystop = utils.EarlyStop(patience=20,
                             model=student_model,
                             filename=weight_file)
 # ----------------------------------------------------------------------------
