@@ -19,7 +19,13 @@ import register
 from register import dataset
 
 procedure = Procedure.Popularity_Bias
+Recmodel = register.MODELS[world.model_name](world.config, dataset)
 # ----------------------------------------------------------------------------
+file = utils.getFileName(world.model_name,
+                         world.dataset,
+                         world.config['latent_dim_rec'],
+                         layers=world.config['lightGCN_n_layers'])
+file = 'teacher-' + file
 weight_file = os.path.join(world.FILE_PATH, file)
 print(f"Load {weight_file}")
 utils.load(Recmodel, weight_file)
