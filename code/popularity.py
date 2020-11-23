@@ -19,9 +19,14 @@ print(f"[SEED:{world.SEED}]")
 import register
 from register import dataset
 
-pop = np.loadtxt("popularity/popularity-gowa-teacher.txt")
+print(np.mean(dataset.popularity()[0]))
 
-utils.draw(dataset, pop)
+pop1 = np.loadtxt("popularity/popularity-gowa-teacher-mf.txt")
+pop2 = np.loadtxt("popularity/popularity-gowa-RD.txt")
+pop3 = np.loadtxt("popularity/popularity-gowa-student-mf.txt")
+
+utils.draw(dataset, pop1, pop2, name2='RD-32')
+# utils.powerlaw(pop1, pop2, pop3)
 exit()
 procedure = Procedure.Popularity_Bias
 Recmodel = register.MODELS[world.model_name](world.config, dataset)

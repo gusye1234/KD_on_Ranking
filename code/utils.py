@@ -182,18 +182,57 @@ def time2str(sam_time : list):
         sam_copy += '+' + f"{t:.2f}"
     return sam_copy[1:]
 
-def draw(dataset, pop):
+def draw(dataset, pop, pop2, name1='teacher', name2='Distilled'):
     import matplotlib.pyplot as plt
+    import powerlaw
     dataset : Loader
     pop_item, index = dataset.popularity()
     p1 = pop_item[index]
     p2 = pop[index]
-    print(p1.shape, p1.dtype)
-    print(p2.shape, p2.dtype)
-    plt.scatter(range(len(p2)),p2, c='springgreen', s=5, alpha=0.3)
-    plt.scatter(range(len(p1)),p1, c='blue', s=5)
+    p3 = pop2[index]
+    # p1 = np.log(p1+1)
+    # p2 = np.log(p2+1)
+    # p3 = np.log(p3+1)
+    x = range(1, len(p2) + 1)
+    # x = np.log(range(1, len(p2)+1))
+    # plt.scatter(x,p2, c='green', linewidth=0,s=100, alpha=0.5)
+    plt.plot(x, p2, c='springgreen', linewidth=15, alpha=0.8, label=name1)
+    # plt.scatter(x, p3, c='springgreen', linewidth=0, s=10, alpha=0.3)
+    plt.plot(x,p3, c='darkgreen', linewidth=3, alpha=0.3, label=name2)
+    # plt.scatter(x,p1, c='blue', s=5)
+    plt.plot(x, p1, c='k', label="Training set")
     plt.xlabel("Items sorted by popularity in Training set")
     plt.ylabel("#Popularity")
+    plt.legend()
+    plt.show()
+
+def powerlaw(pop1, pop2, pop3):
+    import matplotlib.pyplot as plt
+    import powerlaw
+    fit1 = powerlaw.Fit(pop1)
+    fit2 = powerlaw.Fit(pop2)
+    fit3 = powerlaw.Fit(pop3)
+    fig1 = fit1.plot_pdf(color='b', label="Teacher")
+    fit1.power_law.plot_pdf(color='b', linestyle="--",ax=fig1)
+
+    # fig1 = fit1.plot_ccdf(color='b', label="Teacher")
+    # fit1.power_law.plot_ccdf(color='b', linestyle="--", ax=fig1)
+
+    fit2.plot_pdf(color='y', ax=fig1, label="RD-32")
+    fit2.power_law.plot_pdf(color='y', linestyle="--",ax=fig1)
+    fit3.plot_pdf(color='r', ax=fig1, label="Student")
+    fit3.power_law.plot_pdf(color='r', linestyle="--",ax=fig1)
+
+    # fit2.plot_ccdf(color='y', ax=fig1, label="RD-32")
+    # fit2.power_law.plot_ccdf(color='y', linestyle="--", ax=fig1)
+    # fit3.plot_ccdf(color='r', ax=fig1, label="Student")
+    # fit3.power_law.plot_ccdf(color='r', linestyle="--", ax=fig1)
+
+    plt.xlabel("log(x)")
+    plt.ylabel("log(#popularity)")
+    plt.title("Probability Density Function")
+    # plt.title("Complementary Cumulative Distribution Function")
+    plt.legend()
     plt.show()
 
 
