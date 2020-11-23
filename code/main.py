@@ -65,7 +65,7 @@ print(f"load and save to {weight_file}")
 if world.LOAD:
     utils.load(Recmodel, weight_file)
 # ----------------------------------------------------------------------------
-earlystop = utils.EarlyStop(patience=100, model=Recmodel, filename=weight_file)
+earlystop = utils.EarlyStop(patience=30, model=Recmodel, filename=weight_file)
 Recmodel = Recmodel.to(world.DEVICE)
 # ----------------------------------------------------------------------------
 # init tensorboard
@@ -89,15 +89,15 @@ try:
         print(
             f'EPOCH[{epoch}/{world.TRAIN_epochs}][{time.time() - start:.2f}] - {output_information}'
         )
-
-        cprint("TEST", ends=': ')
-        results = Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'], valid=True)
-        pprint(results)
-        if earlystop.step(epoch, results):
-            print("trigger earlystop")
-            print(f"best epoch:{earlystop.best_epoch}")
-            print(f"best results:{earlystop.best_result}")
-            break
+        if epoch % 5 == 0 and epoch !=0:
+            cprint("TEST", ends=': ')
+            results = Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'], valid=True)
+            pprint(results)
+            if earlystop.step(epoch, results):
+                print("trigger earlystop")
+                print(f"best epoch:{earlystop.best_epoch}")
+                print(f"best results:{earlystop.best_result}")
+                break
 finally:
     if world.tensorboard:
         w.close()
@@ -116,6 +116,6 @@ with open(log_file, 'a') as f:
     f.write("#######################################\n")
     f.write(f"SEED: {world.SEED}, DNS_K: {str(world.DNS_K)}, Stop at: {earlystop.best_epoch+1}/{world.TRAIN_epochs}\n"\
             f"flag: {file.split('.')[0]}. \nLR: {world.config['lr']}, DECAY: {world.config['decay']}\n"\
-            f"TopK: {world.topks}")
+            f"TopK: {world.topks}\n")
     f.write(f"%%Valid%%\n{best_result}\n%%TEST%%\n{results}\n")
     f.close()
