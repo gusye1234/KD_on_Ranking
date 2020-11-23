@@ -77,6 +77,7 @@ bpr = utils.BPRLoss(student_model, world.config)
 # ----------------------------------------------------------------------------
 # get names
 file = utils.getFileName(world.model_name, world.dataset, world.config['latent_dim_rec'], layers=world.config['lightGCN_n_layers'])
+file = world.SAMPLE_METHOD + '-' + file
 weight_file = os.path.join(world.FILE_PATH, file)
 print('-------------------------')
 print(f"load and save student to {weight_file}")

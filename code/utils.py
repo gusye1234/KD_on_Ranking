@@ -11,7 +11,7 @@ from model import LightGCN
 from torch import nn, optim
 from torch import log, Tensor
 from model import PairWiseModel
-from dataloader import BasicDataset
+from dataloader import BasicDataset, Loader
 
 # ============================================================================
 # ============================================================================
@@ -181,6 +181,20 @@ def time2str(sam_time : list):
     for t in sam_time:
         sam_copy += '+' + f"{t:.2f}"
     return sam_copy[1:]
+
+def draw(dataset, pop):
+    import matplotlib.pyplot as plt
+    dataset : Loader
+    pop_item, index = dataset.popularity()
+    p1 = pop_item[index]
+    p2 = pop[index]
+    print(p1.shape, p1.dtype)
+    print(p2.shape, p2.dtype)
+    plt.scatter(range(len(p2)),p2, c='springgreen', s=5, alpha=0.3)
+    plt.scatter(range(len(p1)),p1, c='blue', s=5)
+    plt.xlabel("Items sorted by popularity in Training set")
+    plt.ylabel("#Popularity")
+    plt.show()
 
 
 def _loo_split_dataset(train_f, test_f):

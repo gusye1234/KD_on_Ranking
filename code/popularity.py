@@ -10,6 +10,7 @@ from world import cprint
 import sample
 from tensorboardX import SummaryWriter
 
+world.DISTILL = False
 # ----------------------------------------------------------------------------
 utils.set_seed(world.SEED)
 print(f"[SEED:{world.SEED}]")
@@ -18,6 +19,10 @@ print(f"[SEED:{world.SEED}]")
 import register
 from register import dataset
 
+pop = np.loadtxt("popularity/popularity-gowa-teacher.txt")
+
+utils.draw(dataset, pop)
+exit()
 procedure = Procedure.Popularity_Bias
 Recmodel = register.MODELS[world.model_name](world.config, dataset)
 # ----------------------------------------------------------------------------
@@ -34,4 +39,4 @@ Recmodel = Recmodel.to(world.DEVICE)
 
 pop = procedure(dataset, Recmodel)
 
-np.savetxt(f"popularity{world.dataset}-{world.comment}.txt", pop)
+np.savetxt(f"popularity-{world.dataset}-{world.comment}.txt", pop)

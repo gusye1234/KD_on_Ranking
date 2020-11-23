@@ -390,6 +390,6 @@ def Popularity_Bias(dataset, Recmodel, valid=True):
             _, rating_K = torch.topk(rating, k=max_K)
             del rating
             rating_K = rating_K.numpy().astype('int')
-            for i in range(u_batch_size):
+            for i in range(len(batch_users)):
                 Popularity[rating_K[i]] +=1
     return Popularity.astype('int')

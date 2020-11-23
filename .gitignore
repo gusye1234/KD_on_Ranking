@@ -18,3 +18,4 @@ __pycache__/
 *.npz
 count.txt
 test.sh
+popularity/
