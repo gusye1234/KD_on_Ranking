@@ -197,7 +197,7 @@ class Loader(BasicDataset):
     def popularity(self):
         popularity = np.array(self.UserItemNet.sum(axis=0)).squeeze()
         sorted_index = np.argmax(popularity)
-    return popularity, sorted_index
+        return popularity, sorted_index
 
     def _split_A_hat(self,A):
         A_fold = []
