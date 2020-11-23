@@ -40,6 +40,7 @@ teacher_file = utils.getFileName(world.model_name,
                                  world.dataset,
                                  world.config['teacher_dim'],
                                  layers=world.config['teacher_layer'])
+teacher_file = "teacher-" + teacher_file
 teacher_weight_file = os.path.join(world.FILE_PATH, teacher_file)
 print('-------------------------')
 world.cprint("loaded teacher weights from")

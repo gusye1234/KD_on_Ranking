@@ -165,10 +165,6 @@ class Loader(BasicDataset):
         # (users,items), bipartite graph
         self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
                                       shape=(self.__n_users, self.__m_items), dtype='int')
-        self.users_D = np.array(self.UserItemNet.sum(axis=1)).squeeze()
-        self.users_D[self.users_D == 0.] = 1
-        self.items_D = np.array(self.UserItemNet.sum(axis=0)).squeeze()
-        self.items_D[self.items_D == 0.] = 1.
         # pre-calculate
         self.__allPos = self.getUserPosItems(list(range(self.__n_users)))
         self.__testDict = self.build_dict(self.testUser, self.testItem)
@@ -197,6 +193,11 @@ class Loader(BasicDataset):
     @property
     def allPos(self):
         return self.__allPos
+
+    def popularity(self):
+        popularity = np.array(self.UserItemNet.sum(axis=0)).squeeze()
+        sorted_index = np.argmax(popularity)
+    return popularity, sorted_index
 
     def _split_A_hat(self,A):
         A_fold = []
