@@ -111,12 +111,18 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
     torch.manual_seed(seed)
 
-def getFileName(model_name, dataset,rec_dim, layers=None, dns_k=1):
+def getFileName(model_name, dataset,rec_dim, layers=None, dns_k=None):
     if model_name == 'mf':
-        file = f"mf-{dataset}-{rec_dim}-{dns_k}.pth.tar"
+        if dns_k is not None:
+            file = f"mf-{dataset}-{rec_dim}-{dns_k}.pth.tar"
+        else:
+            file = f"mf-{dataset}-{rec_dim}.pth.tar"
     elif model_name == 'lgn':
         assert layers is not None
-        file = f"lgn-{dataset}-{layers}-{rec_dim}-{dns_k}.pth.tar"
+        if dns_k is not None:
+            file = f"lgn-{dataset}-{layers}-{rec_dim}-{dns_k}.pth.tar"
+        else:
+            file = f"lgn-{dataset}-{layers}-{rec_dim}.pth.tar"
     return file
 
 def getLogFile():
