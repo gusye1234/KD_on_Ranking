@@ -76,7 +76,11 @@ sampler = register.SAMPLER[world.SAMPLE_METHOD](dataset, student_model, teacher_
 bpr = utils.BPRLoss(student_model, world.config)
 # ----------------------------------------------------------------------------
 # get names
-file = utils.getFileName(world.model_name, world.dataset, world.config['latent_dim_rec'], layers=world.config['lightGCN_n_layers'])
+file = utils.getFileName(world.model_name, 
+                         world.dataset, 
+                         world.config['latent_dim_rec'], 
+                         layers=world.config['lightGCN_n_layers'],
+                         dns_k=world.DNS_K)
 file = world.SAMPLE_METHOD + '-' + file
 weight_file = os.path.join(world.FILE_PATH, file)
 print('-------------------------')

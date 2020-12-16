@@ -59,7 +59,12 @@ else:
 procedure = register.TRAIN[world.method]
 bpr = utils.BPRLoss(Recmodel, world.config)
 # ----------------------------------------------------------------------------
-file = utils.getFileName(world.model_name, world.dataset, world.config['latent_dim_rec'], layers=world.config['lightGCN_n_layers'])
+file = utils.getFileName(world.model_name, 
+                         world.dataset, 
+                         world.config['latent_dim_rec'], 
+                         layers=world.config['lightGCN_n_layers'], 
+                         dns_k=world.DNS_K)
+
 weight_file = os.path.join(world.FILE_PATH, file)
 print(f"load and save to {weight_file}")
 if world.LOAD:

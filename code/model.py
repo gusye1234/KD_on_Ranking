@@ -147,7 +147,6 @@ class LightGCN(BasicModel):
                 all_emb = torch.sparse.mm(g_droped, all_emb)
             embs.append(all_emb)
         embs = torch.stack(embs, dim=1)
-        #print(embs.size())
         light_out = torch.mean(embs, dim=1)
         users, items = torch.split(light_out, [self.num_users, self.num_items])
         self.all_users = users
@@ -252,7 +251,7 @@ class LightEmb(LightGCN):
 
         self.latent_dim_tea = self.tea.latent_dim
         self.transfer_user = nn.Sequential(
-            nn.Linear(self.latent_dim_tea, self.latent_dim), 
+            nn.Linear(self.latent_dim_tea, self.latent_dim),
         )
         self.transfer_item = nn.Sequential(
             nn.Linear(self.latent_dim_tea, self.latent_dim)
@@ -300,3 +299,50 @@ class Embedding_wrapper:
 
     def __repr__(self):
         return f"Emb({self.num} X {self.dim})"
+
+
+class LightUni(LightGCN):
+    def __init__(self, *args, **kwargs):
+        super(LightUni, self).__init__(*args, **kwargs)
+
+    def computer(self):
+        """
+        propagate methods for lightGCN
+        """
+        if self.fix:
+            try:
+                return self.all_users, self.all_items
+            except:
+                print("teacher only comptue once")
+                pass
+        users_emb = self.embedding_user.weight
+        items_emb = self.embedding_item.weight
+        all_emb = torch.cat([users_emb, items_emb])
+        embs = [all_emb]
+        if self.config['dropout']:
+            if self.training:
+                print("droping")
+                g_droped = self.__dropout(self.keep_prob)
+            else:
+                g_droped = self.Graph
+        else:
+            g_droped = self.Graph
+
+        for layer in range(self.n_layers):
+            if self.A_split:
+                temp_emb = []
+                for f in range(len(g_droped)):
+                    temp_emb.append(torch.sparse.mm(g_droped[f], all_emb))
+                side_emb = torch.cat(temp_emb, dim=0)
+                all_emb = side_emb
+            else:
+                all_emb = torch.sparse.mm(g_droped, all_emb)
+            embs.append(all_emb)
+        embs = torch.stack(embs, dim=1)
+        light_out = torch.mean(embs, dim=1)
+        users, items = torch.split(light_out, [self.num_users, self.num_items])
+        users = users/(users.norm(2, dim=1).unsqueeze(1) + 1e-7)
+        items = items/(items.norm(2, dim=1).unsqueeze(1) + 1e-7)
+        self.all_users = users
+        self.all_items = items
+        return users, items
