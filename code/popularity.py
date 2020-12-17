@@ -49,6 +49,7 @@ else:
     Recmodel = Recmodel.to(world.DEVICE)
     test_results = Procedure.Test(dataset, Recmodel, 0, valid=False)
     pprint(test_results)
-    pop = procedure(dataset, Recmodel)
+    pop, user_pop = procedure(dataset, Recmodel)
 
     np.savetxt(f"popularity-{world.dataset}-{world.comment}.txt", pop)
+    np.savetxt(f"popularity-{world.dataset}-{world.comment}-user.txt", user_pop)

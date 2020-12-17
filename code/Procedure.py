@@ -384,4 +384,4 @@ def Popularity_Bias(dataset, Recmodel, valid=True):
             user_topk[batch_users] = rating_K
             for i in range(len(batch_users)):
                 Popularity[rating_K[i]] +=1
-    return Popularity.astype('int')
+    return Popularity.astype('int'), user_topk.astype("int")
