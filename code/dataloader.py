@@ -195,6 +195,10 @@ class Loader(BasicDataset):
         return self.__allPos
 
     def popularity(self):
+        """
+        Returns:
+            tuple: (popularity_item, sorted_index)
+        """
         popularity = np.array(self.UserItemNet.sum(axis=0)).squeeze()
         sorted_index = np.argsort(-popularity)
         return popularity, sorted_index

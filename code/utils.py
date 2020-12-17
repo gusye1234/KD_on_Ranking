@@ -189,6 +189,8 @@ def time2str(sam_time : list):
         sam_copy += '+' + f"{t:.2f}"
     return sam_copy[1:]
 
+# Draw and Count<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 def draw(dataset, pop_rate, pop1, pop2,):
     import matplotlib.pyplot as plt
     import powerlaw
@@ -289,6 +291,75 @@ def powerlaw(pop1, pop2, pop3):
     plt.legend()
     plt.show()
 
+def map_item_three(pop_item):
+    """mapping item into short-head(0.2), long-tail(0.6), distant-tail(0.2)
+
+    Args:
+        pop_item ([type]): [description]
+        
+    Return:
+        list[ndarray...]: short-head, long-tail, distant-tail
+    """
+    from math import floor, ceil
+    index = np.argsort(pop_item)[::-1]
+    num_item = len(index)
+    return (index[:floor(num_item * 0.2)],
+            index[ceil(num_item * 0.2):floor(num_item * 0.8)],
+            index[ceil(num_item * 0.8):])
+
+def APT(pop_user, mappings):
+    """calculate the APT metrics for different sets
+
+    Args:
+        pop_user (list | ndarray): the recommend list or history of users
+        mappings (list | tuple): (short-head, long-tail, distant-tail)
+
+    Returns:
+        list: APTs for different mappings
+    """
+    total_set = len(mappings)
+    total_user = len(pop_user)
+    apts = []
+    for mapping in mappings:
+        apt = 0.
+        for user_item in pop_user:
+            count = list(map(lambda x: x in mapping, user_item))
+            apt = np.mean(count)
+        apt = apt/total_user
+        apts.append(apt)
+    return apts
+
+def popularity_ratio(pop_model : np.ndarray,
+                     pop_model_user : np.ndarray,
+                     dataset : Loader):
+    """calculate the degree of the "long-tailness" for a distribution
+
+    Args:
+        pop_model (ndarray): the freq of items recommended by model
+        pop_model_user (ndarray): (user X topk) the recommend list of users
+        dataset (dataloader.Loader): the freq of items in dataset
+
+    Returns:
+        dict: {"I_ratio""float, "I_KL":float, "I_gini":float, "APT":[], "I_bin": float}
+    """
+    pop_dataset, _ = dataset.popularity()
+    
+    assert len(pop_model) == len(pop_dataset)
+    num_item = len(pop_dataset)
+    num_interaction = pop_model.sum()
+    metrics = {}
+
+    metrics['I_ratio'] = pop_model.max() / pop.min()
+
+    prop_model = pop_model / num_interaction
+    prop_uniform = 1./num_item
+    metrics['I_KL']= np.sum(prop_model*np.log(prop_model/prop_uniform))
+
+    metrics['I_gini'] = 0.
+
+    # metrics['APT'] = APT(pop_model_user,)
+
+# Dataset spliting (only used once for generation)<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 def _loo_split_dataset(train_f, test_f):
     train = {}

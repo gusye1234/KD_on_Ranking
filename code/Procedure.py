@@ -344,18 +344,7 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0, valid=True):
 
 
 def Popularity_Bias(dataset, Recmodel, valid=True):
-    """evaluate models
 
-    Args:
-        dataset (BasicDatset): defined in dataloader.BasicDataset, loaded in register.py
-        Recmodel (PairWiseModel):
-        epoch (int): 
-        w (SummaryWriter, optional): Tensorboard writer
-        multicore (int, optional): The num of cpu cores for testing. Defaults to 0.
-
-    Returns:
-        dict: summary of metrics
-    """
     u_batch_size = world.config['test_u_batch_size']
     dataset: utils.BasicDataset
     testDict: dict
@@ -365,9 +354,11 @@ def Popularity_Bias(dataset, Recmodel, valid=True):
     else:
         testDict = dataset.testDict
     Recmodel: model.LightGCN
+    perUser = int(dataset.trainDataSize / dataset.n_users)
     # eval mode with no dropout
     Recmodel.eval()
-    max_K = max(world.topks)
+    max_K = perUser
+    user_topk = np.zeros((dataset.n_users, max_K), dtype=int)
     with torch.no_grad():
         users = list(testDict.keys())
         rating_list = []
@@ -390,6 +381,7 @@ def Popularity_Bias(dataset, Recmodel, valid=True):
             _, rating_K = torch.topk(rating, k=max_K)
             del rating
             rating_K = rating_K.numpy().astype('int')
+            user_topk[batch_users] = rating_K
             for i in range(len(batch_users)):
                 Popularity[rating_K[i]] +=1
     return Popularity.astype('int')
