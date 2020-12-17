@@ -102,6 +102,7 @@ class EarlyStop:
             self.best_result = performance
             self.best_epoch = epoch
             self.best_model = self.model.state_dict()
+            torch.save(self.best_model, self.filename)
             return False
 
 def set_seed(seed):
@@ -188,29 +189,74 @@ def time2str(sam_time : list):
         sam_copy += '+' + f"{t:.2f}"
     return sam_copy[1:]
 
-def draw(dataset, pop, pop2, name1='teacher', name2='Distilled'):
+def draw(dataset, pop_rate, pop1, pop2,):
     import matplotlib.pyplot as plt
     import powerlaw
     dataset : Loader
-    pop_item, index = dataset.popularity()
-    p1 = pop_item[index]
-    p2 = pop[index]
-    p3 = pop2[index]
-    # p1 = np.log(p1+1)
-    # p2 = np.log(p2+1)
-    # p3 = np.log(p3+1)
-    x = range(1, len(p2) + 1)
-    # x = np.log(range(1, len(p2)+1))
-    # plt.scatter(x,p2, c='green', linewidth=0,s=100, alpha=0.5)
-    plt.plot(x, p2, c='springgreen', linewidth=15, alpha=0.8, label=name1)
-    # plt.scatter(x, p3, c='springgreen', linewidth=0, s=10, alpha=0.3)
-    plt.plot(x,p3, c='darkgreen', linewidth=3, alpha=0.3, label=name2)
-    # plt.scatter(x,p1, c='blue', s=5)
-    plt.plot(x, p1, c='k', label="Training set")
-    plt.xlabel("Items sorted by popularity in Training set")
-    plt.ylabel("#Popularity")
+    # pop_item, index = dataset.popularity()
+    x = pop_rate
+    
+    x_02 = (x > 0.075)
+    pop1_mask = (pop1 > x)
+    pop2_mask = (pop2 > x)
+
+    plt.scatter(x[~pop1_mask], pop1[~pop1_mask], c='springgreen', linewidth=0, s=5, alpha=1, label='student')
+    plt.scatter(x[~pop2_mask], pop2[~pop2_mask], c='blue', s=5, linewidth=0, alpha=0.1,label="After distillation")
+
+    plt.scatter(x[pop2_mask],pop2[pop2_mask], c='blue', s=30, linewidth=0, alpha=0.8, label="After distillation")
+    plt.scatter(x[pop1_mask], pop1[pop1_mask], c='springgreen', linewidth=0, s=30, alpha=1, label='student')
+
+    plt.plot(x, x, linewidth=8,label="dataset")
+    # plt.plot(x[~x_02], x[~x_02], linewidth=5, alpha=0.5,label="dataset")
+    plt.xlabel("Dataset popularity rate")
+    plt.ylabel("Model popularity rate")
     plt.legend()
+    plt.title("Gowalla")
     plt.show()
+
+def draw_help_log(x, num):
+    x_index = np.log2(1 + x * num)
+    x_index = x_index / x_index.max()
+    return x_index
+
+def draw_log(
+    dataset,
+    pop_rate,
+    pop1,
+    pop2,
+):
+    import matplotlib.pyplot as plt
+    import powerlaw
+    dataset: Loader
+    # pop_item, index = dataset.popularity()
+    x = pop_rate
+    x_index = draw_help_log(x, 100)
+    pop1 = draw_help_log(pop1, 100)
+    pop2 = draw_help_log(pop2, 100)
+    # plt.plot(x, pop1, c='springgreen', linewidth=15, alpha=0.8, label=name1)
+    plt.scatter(x_index,
+                pop1,
+                c='green',
+                linewidth=0,
+                s=30,
+                alpha=0.5,
+                label='student')
+    # plt.plot(x, pop1, c='darkgreen', linewidth=3, alpha=0.3, label=name2)
+    plt.scatter(x_index,
+                pop2,
+                c='blue',
+                s=30,
+                linewidth=0,
+                alpha=0.5,
+                label="After distillation")
+
+    plt.plot(np.sort(x_index), np.sort(x_index), label="dataset")
+    plt.xlabel("Dataset popularity rate")
+    plt.ylabel("Model popularity rate")
+    plt.legend()
+    plt.title("Gowalla")
+    plt.show()
+
 
 def powerlaw(pop1, pop2, pop3):
     import matplotlib.pyplot as plt

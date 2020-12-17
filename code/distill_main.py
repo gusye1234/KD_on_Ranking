@@ -52,7 +52,7 @@ teacher_model = register.MODELS[world.model_name](teacher_config,
                                                   dataset,
                                                   fix=True)
 teacher_model.eval()
-utils.load(teacher_model, teacher_weight_file)
+utils.load(teacher_model, teacher_weight_file)     
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------

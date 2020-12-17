@@ -19,13 +19,17 @@ print(f"[SEED:{world.SEED}]")
 import register
 from register import dataset
 
-print(np.mean(dataset.popularity()[0]))
 
-pop1 = np.loadtxt("popularity/popularity-gowa-teacher-mf.txt")
+pop1 = np.loadtxt("popularity/popularity-gowa-student-mf.txt")
+pop1 = pop1/np.max(pop1)
 pop2 = np.loadtxt("popularity/popularity-gowa-RD.txt")
-pop3 = np.loadtxt("popularity/popularity-gowa-student-mf.txt")
+pop2 = pop2/np.max(pop2)
 
-utils.draw(dataset, pop1, pop2, name2='RD-32')
+data_pop, sorted_index = dataset.popularity()
+data_pop = data_pop.astype("float")/np.max(data_pop)
+print(np.sum(data_pop), np.sum(pop1), np.sum(pop2))
+
+utils.draw(dataset, data_pop,pop1, pop2)
 # utils.powerlaw(pop1, pop2, pop3)
 exit()
 procedure = Procedure.Popularity_Bias
