@@ -47,7 +47,8 @@ else:
     utils.load(Recmodel, weight_file)
     # ----------------------------------------------------------------------------
     Recmodel = Recmodel.to(world.DEVICE)
-
+    test_results = Procedure.Test(dataset, Recmodel, 0, valid=False)
+    pprint(test_results)
     pop = procedure(dataset, Recmodel)
 
     np.savetxt(f"popularity-{world.dataset}-{world.comment}.txt", pop)
