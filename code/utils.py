@@ -195,22 +195,24 @@ def draw(dataset, pop_rate, pop1, pop2,):
     dataset : Loader
     # pop_item, index = dataset.popularity()
     x = pop_rate
-    
-    x_02 = (x > 0.075)
+
     pop1_mask = (pop1 > x)
     pop2_mask = (pop2 > x)
 
-    plt.scatter(x[~pop1_mask], pop1[~pop1_mask], c='springgreen', linewidth=0, s=5, alpha=1, label='student')
-    plt.scatter(x[~pop2_mask], pop2[~pop2_mask], c='blue', s=5, linewidth=0, alpha=0.1,label="After distillation")
+    plt.scatter(x[~pop1_mask], pop1[~pop1_mask], c='springgreen', linewidth=0, s=10, alpha=1, label='student')
+    plt.scatter(x[~pop2_mask], pop2[~pop2_mask], c='blue', s=10, linewidth=0, alpha=0.3,label="After distillation")
 
     plt.scatter(x[pop2_mask],pop2[pop2_mask], c='blue', s=30, linewidth=0, alpha=0.8, label="After distillation")
     plt.scatter(x[pop1_mask], pop1[pop1_mask], c='springgreen', linewidth=0, s=30, alpha=1, label='student')
 
     plt.plot(x, x, linewidth=8,label="dataset")
-    # plt.plot(x[~x_02], x[~x_02], linewidth=5, alpha=0.5,label="dataset")
     plt.xlabel("Dataset popularity rate")
     plt.ylabel("Model popularity rate")
-    plt.legend()
+    handles, labels = plt.gca().get_legend_handles_labels()
+    order = [0, 1, 4, 2, 3]
+    handles = [handles[i] for i in order]
+    labels = [labels[i] for i in order]
+    plt.legend(handles, labels)
     plt.title("Gowalla")
     plt.show()
 
