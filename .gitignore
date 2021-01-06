@@ -19,3 +19,5 @@ __pycache__/
 count.txt
 test.sh
 popularity/
+stats/
+pics/

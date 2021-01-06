@@ -6,6 +6,7 @@ import world
 import torch
 import random
 import numpy as np
+from  tqdm import tqdm
 from time import time
 from model import LightGCN
 from torch import nn, optim
@@ -190,13 +191,37 @@ def time2str(sam_time : list):
     return sam_copy[1:]
 
 # Draw and Count<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+def draw_longtail(dataset, pop1, pop2):
+    import matplotlib.pyplot as plt
+    dataset: Loader
+    # pop_item, index = dataset.popularity()
+    x = dataset.popularity()[0]
+    x = x / x.max()
+    pop1 = pop1 / pop1.max()
+    pop2 = pop2 / pop2.max()
+    print(x.sum(), pop1.sum(), pop2.sum())
 
-def draw(dataset, pop_rate, pop1, pop2,):
+    pop1 = np.sort(pop1)[::-1]
+    pop2 = np.sort(pop2)[::-1]
+    x = np.sort(x)[::-1]
+
+    plt.plot(range(len(x)), pop1, label="student")
+    plt.plot(range(len(x)), pop2, label="RD")
+    plt.plot(range(len(x)), x, label="dataset")
+    plt.legend()
+    plt.show()
+
+
+def draw(dataset, pop1, pop2,):
     import matplotlib.pyplot as plt
     import powerlaw
     dataset : Loader
     # pop_item, index = dataset.popularity()
-    x = pop_rate
+    x = dataset.popularity()[0]
+    x = x/x.max()
+    pop1 = pop1 / pop1.max()
+    pop2 = pop2 / pop2.max()
+    print(x.sum(), pop1.sum(), pop2.sum())
 
     pop1_mask = (pop1 > x)
     pop2_mask = (pop2 > x)
@@ -217,50 +242,6 @@ def draw(dataset, pop_rate, pop1, pop2,):
     plt.legend(handles, labels)
     plt.title("Gowalla")
     plt.show()
-
-def draw_help_log(x, num):
-    x_index = np.log2(1 + x * num)
-    x_index = x_index / x_index.max()
-    return x_index
-
-def draw_log(
-    dataset,
-    pop_rate,
-    pop1,
-    pop2,
-):
-    import matplotlib.pyplot as plt
-    import powerlaw
-    dataset: Loader
-    # pop_item, index = dataset.popularity()
-    x = pop_rate
-    x_index = draw_help_log(x, 100)
-    pop1 = draw_help_log(pop1, 100)
-    pop2 = draw_help_log(pop2, 100)
-    # plt.plot(x, pop1, c='springgreen', linewidth=15, alpha=0.8, label=name1)
-    plt.scatter(x_index,
-                pop1,
-                c='green',
-                linewidth=0,
-                s=30,
-                alpha=0.5,
-                label='student')
-    # plt.plot(x, pop1, c='darkgreen', linewidth=3, alpha=0.3, label=name2)
-    plt.scatter(x_index,
-                pop2,
-                c='blue',
-                s=30,
-                linewidth=0,
-                alpha=0.5,
-                label="After distillation")
-
-    plt.plot(np.sort(x_index), np.sort(x_index), label="dataset")
-    plt.xlabel("Dataset popularity rate")
-    plt.ylabel("Model popularity rate")
-    plt.legend()
-    plt.title("Gowalla")
-    plt.show()
-
 
 def powerlaw(pop1, pop2, pop3):
     import matplotlib.pyplot as plt
@@ -303,9 +284,9 @@ def map_item_three(pop_item):
     from math import floor, ceil
     index = np.argsort(pop_item)[::-1]
     num_item = len(index)
-    return (index[:floor(num_item * 0.2)],
-            index[ceil(num_item * 0.2):floor(num_item * 0.8)],
-            index[ceil(num_item * 0.8):])
+    return (set(index[:floor(num_item * 0.2)]),
+            set(index[ceil(num_item * 0.2):floor(num_item * 0.8)]),
+            set(index[ceil(num_item * 0.8):]))
 
 def APT(pop_user, mappings):
     """calculate the APT metrics for different sets
@@ -324,7 +305,7 @@ def APT(pop_user, mappings):
         apt = 0.
         for user_item in pop_user:
             count = list(map(lambda x: x in mapping, user_item))
-            apt = np.mean(count)
+            apt += np.mean(count)
         apt = apt/total_user
         apts.append(apt)
     return apts
@@ -343,21 +324,32 @@ def popularity_ratio(pop_model : np.ndarray,
         dict: {"I_ratio""float, "I_KL":float, "I_gini":float, "APT":[], "I_bin": float}
     """
     pop_dataset, _ = dataset.popularity()
-    
+
     assert len(pop_model) == len(pop_dataset)
     num_item = len(pop_dataset)
     num_interaction = pop_model.sum()
     metrics = {}
 
-    metrics['I_ratio'] = pop_model.max() / pop.min()
+    # metrics['I_ratio'] = pop_model.max() / pop_model.min()
+    # metrics['I_gini'] = 0.
 
     prop_model = pop_model / num_interaction
     prop_uniform = 1./num_item
-    metrics['I_KL']= np.sum(prop_model*np.log(prop_model/prop_uniform))
 
-    metrics['I_gini'] = 0.
+    prop_dataset = pop_dataset/pop_dataset.sum()
+    # print("dataset KL",np.sum(prop_dataset * np.log(prop_dataset / prop_uniform + 1e-7)))
+    metrics['I_KL']= np.sum(prop_model*np.log(prop_model/prop_uniform + 1e-7))
 
-    # metrics['APT'] = APT(pop_model_user,)
+
+    mapping = map_item_three(dataset.popularity()[0])
+    D_dis = np.array([len(m) for m  in mapping])
+    metrics['APT'] = APT(pop_model_user, mapping)
+    # print("dataset APT", APT(dataset.allPos, mapping))
+
+    # print("dataset bin", np.sum(pop_dataset/pop_dataset.max()))
+    metrics['I_bin'] = np.sum(pop_model/np.max(pop_model))
+
+    return metrics
 
 # Dataset spliting (only used once for generation)<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

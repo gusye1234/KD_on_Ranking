@@ -297,7 +297,7 @@ class Loader(BasicDataset):
         for user in users:
             posItems.append(self.UserItemNet[user].nonzero()[1])
         return posItems
-
+        
     @property
     def testDict(self):
         return self.__testDict

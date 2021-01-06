@@ -22,18 +22,43 @@ from register import dataset
 draw = True
 
 if draw:
-    pop1 = np.loadtxt("popularity/popularity-gowa-student-mf.txt")
-    pop1 = pop1/np.max(pop1)
-    pop2 = np.loadtxt("popularity/popularity-gowa-RD.txt")
-    pop2 = pop2/np.max(pop2)
+    # name1 = "amaz-tea-mf"
+    # pop1 = np.loadtxt(f"stats/popularity-{name1}.txt")
+    # pop1_user = np.loadtxt(f"stats/popularity-{name1}-user.txt")
 
-    data_pop, sorted_index = dataset.popularity()
-    data_pop = data_pop.astype("float")/np.max(data_pop)
-    print(np.sum(data_pop), np.sum(pop1), np.sum(pop2))
+    # name2 = 'amaz-student-mf'
+    # pop2 = np.loadtxt(f"stats/popularity-{name2}.txt")
+    # pop2_user = np.loadtxt(f"stats/popularity-{name2}-user.txt")
 
-    utils.draw(dataset, data_pop,pop1, pop2)
-    # utils.powerlaw(pop1, pop2, pop3)
+    # # utils.draw_longtail(dataset, pop1, pop2)
+    # utils.draw(dataset,pop1, pop2)
+    # print(name1)
+    # pprint(utils.popularity_ratio(pop1, pop1_user, dataset))
+    # print(name2)
+    # pprint(utils.popularity_ratio(pop2, pop2_user, dataset))
     # ----------------------------------------------------------------------------
+    name = "yelp-mf"
+    dims = [10, 50, 100, 150, 200]
+
+    names = [name + str(d) for d in dims]
+
+    pop_item = [
+        np.loadtxt(f"stats/popularity-{n}.txt")
+        for n in names
+    ]
+
+    pop_user = [
+        np.loadtxt(f"stats/popularity-{n}-user.txt")
+        for n in names
+    ]
+    for i in range(len(dims)):
+        pop1 = pop_item[i]
+        pop1_user = pop_user[i]
+        n = names[i]
+        # print(n)
+        pprint(utils.popularity_ratio(pop1, pop1_user, dataset))
+        print(',')
+
 else:
     procedure = Procedure.Popularity_Bias
     Recmodel = register.MODELS[world.model_name](world.config, dataset)
