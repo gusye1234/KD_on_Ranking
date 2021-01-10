@@ -194,14 +194,18 @@ class Loader(BasicDataset):
     def allPos(self):
         return self.__allPos
 
-    def popularity(self):
+    def popularity(self, at_set="train"):
         """
         Returns:
             tuple: (popularity_item, sorted_index)
         """
-        popularity = np.array(self.UserItemNet.sum(axis=0)).squeeze()
-        sorted_index = np.argsort(-popularity)
-        return popularity, sorted_index
+        if at_set == 'train':
+            popularity = np.array(self.UserItemNet.sum(axis=0)).squeeze()
+            sorted_index = np.argsort(-popularity)
+            return popularity, sorted_index
+        elif at_set == 'test':
+            pass
+
 
     def _split_A_hat(self,A):
         A_fold = []

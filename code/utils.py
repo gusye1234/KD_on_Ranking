@@ -116,15 +116,16 @@ def set_seed(seed):
 def getFileName(model_name, dataset,rec_dim, layers=None, dns_k=None):
     if model_name == 'mf':
         if dns_k is not None:
-            file = f"mf-{dataset}-{rec_dim}-{dns_k}.pth.tar"
+            file = f"mf-{dataset}-{rec_dim}-{dns_k}"
         else:
-            file = f"mf-{dataset}-{rec_dim}.pth.tar"
+            file = f"mf-{dataset}-{rec_dim}"
     elif model_name == 'lgn':
         assert layers is not None
         if dns_k is not None:
-            file = f"lgn-{dataset}-{layers}-{rec_dim}-{dns_k}.pth.tar"
+            file = f"lgn{layers}-{dataset}-{rec_dim}-{dns_k}"
         else:
-            file = f"lgn-{dataset}-{layers}-{rec_dim}.pth.tar"
+            file = f"lgn{layers}-{dataset}-{rec_dim}"
+    file = file + f"-{world.SEED}.pth.tar"
     return file
 
 def getLogFile():
@@ -212,27 +213,29 @@ def draw_longtail(dataset, pop1, pop2):
     plt.show()
 
 
-def draw(dataset, pop1, pop2,):
+def draw(dataset, pop1, pop2, name1='pop1', name2='pop2'):
     import matplotlib.pyplot as plt
     import powerlaw
     dataset : Loader
     # pop_item, index = dataset.popularity()
     x = dataset.popularity()[0]
-    x = x/x.max()
-    pop1 = pop1 / pop1.max()
-    pop2 = pop2 / pop2.max()
     print(x.sum(), pop1.sum(), pop2.sum())
+
+    # x = x/x.max()
+    # norm = max(pop1.max(), pop2.max())
+    # pop1 = pop1 / pop1.max()
+    # pop2 = pop2 / pop2.max()
 
     pop1_mask = (pop1 > x)
     pop2_mask = (pop2 > x)
 
-    plt.scatter(x[~pop1_mask], pop1[~pop1_mask], c='springgreen', linewidth=0, s=10, alpha=1, label='student')
-    plt.scatter(x[~pop2_mask], pop2[~pop2_mask], c='blue', s=10, linewidth=0, alpha=0.3,label="After distillation")
+    plt.scatter(x[~pop1_mask], pop1[~pop1_mask], c='springgreen', linewidth=0, s=10, alpha=1, label=name1)
+    plt.scatter(x[~pop2_mask], pop2[~pop2_mask], c='blue', s=10, linewidth=0, alpha=0.3,label=name2)
 
-    plt.scatter(x[pop2_mask],pop2[pop2_mask], c='blue', s=30, linewidth=0, alpha=0.8, label="After distillation")
-    plt.scatter(x[pop1_mask], pop1[pop1_mask], c='springgreen', linewidth=0, s=30, alpha=1, label='student')
+    plt.scatter(x[pop2_mask],pop2[pop2_mask], c='blue', s=30, linewidth=0, alpha=0.8, label=name2)
+    plt.scatter(x[pop1_mask], pop1[pop1_mask], c='springgreen', linewidth=0, s=30, alpha=1, label=name1)
 
-    plt.plot(x, x, linewidth=8,label="dataset")
+    plt.plot(x, x, linewidth=2,label="dataset")
     plt.xlabel("Dataset popularity rate")
     plt.ylabel("Model popularity rate")
     handles, labels = plt.gca().get_legend_handles_labels()
@@ -281,12 +284,34 @@ def map_item_three(pop_item):
     Return:
         list[ndarray...]: short-head, long-tail, distant-tail
     """
+    return map_item_N(pop_item, [0.2, 0.6, 0.2])
+
+
+def map_item_N(pop_item, spilt):
+    """mapping item into 
+
+    Args:
+        pop_item ([type]): [description]
+        
+    Return:
+        list[ndarray...]: short-head, long-tail, distant-tail
+    """
     from math import floor, ceil
+    assert sum(spilt) == 1.
     index = np.argsort(pop_item)[::-1]
     num_item = len(index)
-    return (set(index[:floor(num_item * 0.2)]),
-            set(index[ceil(num_item * 0.2):floor(num_item * 0.8)]),
-            set(index[ceil(num_item * 0.8):]))
+    # return (set(index[:floor(num_item * 0.2)]),
+    #         set(index[ceil(num_item * 0.2):floor(num_item * 0.8)]),
+    #         set(index[ceil(num_item * 0.8):]))
+    mapping = []
+
+    for i in range(len(spilt)):
+        left = ceil(sum(spilt[:i]) * num_item)
+        right = floor((left + spilt[i]) * num_item)
+        mapping.append(set(
+            index[left:right]
+        ))
+    return mapping
 
 def APT(pop_user, mappings):
     """calculate the APT metrics for different sets
@@ -323,29 +348,29 @@ def popularity_ratio(pop_model : np.ndarray,
     Returns:
         dict: {"I_ratio""float, "I_KL":float, "I_gini":float, "APT":[], "I_bin": float}
     """
-    pop_dataset, _ = dataset.popularity()
 
+    pop_dataset, _ = dataset.popularity()
     assert len(pop_model) == len(pop_dataset)
     num_item = len(pop_dataset)
     num_interaction = pop_model.sum()
     metrics = {}
 
-    # metrics['I_ratio'] = pop_model.max() / pop_model.min()
-    # metrics['I_gini'] = 0.
-
     prop_model = pop_model / num_interaction
     prop_uniform = 1./num_item
 
     prop_dataset = pop_dataset/pop_dataset.sum()
-    # print("dataset KL",np.sum(prop_dataset * np.log(prop_dataset / prop_uniform + 1e-7)))
+    # print("dataset KL",
+    #       np.sum(prop_dataset * np.log(prop_dataset / prop_uniform + 1e-7)))
     metrics['I_KL']= np.sum(prop_model*np.log(prop_model/prop_uniform + 1e-7))
 
-
     mapping = map_item_three(dataset.popularity()[0])
-    D_dis = np.array([len(m) for m  in mapping])
-    metrics['APT'] = APT(pop_model_user, mapping)
-    # print("dataset APT", APT(dataset.allPos, mapping))
+    mapping_N = map_item_N((dataset.popularity()[0]),
+                           [0.1, 0.1, 0.3, 0.3, 0.2])
 
+    metrics['APT'] = APT(pop_model_user, mapping)
+    metrics['APT5'] = APT(pop_model_user, mapping_N)
+
+    # print("dataset APT", APT(dataset.allPos, mapping))
     # print("dataset bin", np.sum(pop_dataset/pop_dataset.max()))
     metrics['I_bin'] = np.sum(pop_model/np.max(pop_model))
 

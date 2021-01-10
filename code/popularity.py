@@ -22,42 +22,38 @@ from register import dataset
 draw = True
 
 if draw:
-    # name1 = "amaz-tea-mf"
-    # pop1 = np.loadtxt(f"stats/popularity-{name1}.txt")
-    # pop1_user = np.loadtxt(f"stats/popularity-{name1}-user.txt")
+    name1 = "gowa-mf50"
+    pop1 = np.loadtxt(f"stats/popularity-{name1}.txt")
+    pop1_user = np.loadtxt(f"stats/popularity-{name1}-user.txt")
 
-    # name2 = 'amaz-student-mf'
-    # pop2 = np.loadtxt(f"stats/popularity-{name2}.txt")
-    # pop2_user = np.loadtxt(f"stats/popularity-{name2}-user.txt")
+    name2 = 'gowa-mf200'
+    pop2 = np.loadtxt(f"stats/popularity-{name2}.txt")
+    pop2_user = np.loadtxt(f"stats/popularity-{name2}-user.txt")
 
-    # # utils.draw_longtail(dataset, pop1, pop2)
-    # utils.draw(dataset,pop1, pop2)
-    # print(name1)
-    # pprint(utils.popularity_ratio(pop1, pop1_user, dataset))
-    # print(name2)
-    # pprint(utils.popularity_ratio(pop2, pop2_user, dataset))
+    # utils.draw_longtail(dataset, pop1, pop2)
+    utils.draw(dataset, pop1, pop2, name1, name2)
     # ----------------------------------------------------------------------------
-    name = "yelp-mf"
-    dims = [10, 50, 100, 150, 200]
+    # name = "amaz-mf"
+    # dims = [10, 50, 100, 150, 200]
 
-    names = [name + str(d) for d in dims]
+    # names = [name + str(d) for d in dims]
 
-    pop_item = [
-        np.loadtxt(f"stats/popularity-{n}.txt")
-        for n in names
-    ]
+    # pop_item = [
+    #     np.loadtxt(f"stats/popularity-{n}.txt")
+    #     for n in names
+    # ]
 
-    pop_user = [
-        np.loadtxt(f"stats/popularity-{n}-user.txt")
-        for n in names
-    ]
-    for i in range(len(dims)):
-        pop1 = pop_item[i]
-        pop1_user = pop_user[i]
-        n = names[i]
-        # print(n)
-        pprint(utils.popularity_ratio(pop1, pop1_user, dataset))
-        print(',')
+    # pop_user = [
+    #     np.loadtxt(f"stats/popularity-{n}-user.txt")
+    #     for n in names
+    # ]
+    # for i in range(len(dims)):
+    #     pop1 = pop_item[i]
+    #     pop1_user = pop_user[i]
+    #     n = names[i]
+    #     # print(n)
+    #     pprint(utils.popularity_ratio(pop1, pop1_user, dataset))
+    #     print(',')
 
 else:
     procedure = Procedure.Popularity_Bias
