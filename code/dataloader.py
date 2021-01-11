@@ -15,6 +15,7 @@ from os.path import join
 from scipy.sparse import csr_matrix
 from torch.utils.data import Dataset, DataLoader
 
+
 class BasicDataset(Dataset):
     def __init__(self):
         print("init dataset")
@@ -61,6 +62,8 @@ class BasicDataset(Dataset):
             |R^T, I|
         """
         raise NotImplementedError
+
+
 # ----------------------------------------------------------------------------
 class Loader(BasicDataset):
     """
@@ -68,8 +71,7 @@ class Loader(BasicDataset):
     Incldue graph information
     gowalla dataset
     """
-
-    def __init__(self,config = world.config,path="../data/gowalla"):
+    def __init__(self, config=world.config, path="../data/gowalla"):
         # train or test
         cprint(f'loading [{path}]')
         self.split = config['A_split']
@@ -163,15 +165,20 @@ class Loader(BasicDataset):
         )
 
         # (users,items), bipartite graph
-        self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
-                                      shape=(self.__n_users, self.__m_items), dtype='int')
+        self.UserItemNet = csr_matrix(
+            (np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
+            shape=(self.__n_users, self.__m_items),
+            dtype='int')
         # pre-calculate
         self.__allPos = self.getUserPosItems(list(range(self.__n_users)))
         self.__testDict = self.build_dict(self.testUser, self.testItem)
         self.__validDict = self.build_dict(self.validUser, self.validItem)
         if world.ALLDATA:
-            self.UserItemNet = csr_matrix((np.ones(len(self._trainUser)), (self._trainUser, self._trainItem)),
-                                      shape=(self.__n_users, self.__m_items), dtype='int')
+            self.UserItemNet = csr_matrix(
+                (np.ones(len(self._trainUser)),
+                 (self._trainUser, self._trainItem)),
+                shape=(self.__n_users, self.__m_items),
+                dtype='int')
         print(f"{world.dataset} is ready to go")
 
     @property
@@ -204,19 +211,21 @@ class Loader(BasicDataset):
             sorted_index = np.argsort(-popularity)
             return popularity, sorted_index
         elif at_set == 'test':
+            #TODO
             pass
 
-
-    def _split_A_hat(self,A):
+    def _split_A_hat(self, A):
         A_fold = []
         fold_len = (self.n_users + self.m_items) // self.folds
         for i_fold in range(self.folds):
-            start = i_fold*fold_len
+            start = i_fold * fold_len
             if i_fold == self.folds - 1:
                 end = self.n_users + self.m_items
             else:
                 end = (i_fold + 1) * fold_len
-            A_fold.append(self._convert_sp_mat_to_sp_tensor(A[start:end]).coalesce().to(world.DEVICE))
+            A_fold.append(
+                self._convert_sp_mat_to_sp_tensor(A[start:end]).coalesce().to(
+                    world.DEVICE))
         return A_fold
 
     def _convert_sp_mat_to_sp_tensor(self, X):
@@ -233,16 +242,19 @@ class Loader(BasicDataset):
             try:
                 if world.ALLDATA:
                     print(f"[all data]{self.path}")
-                    pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat_all.npz')
+                    pre_adj_mat = sp.load_npz(self.path +
+                                              '/s_pre_adj_mat_all.npz')
                 else:
                     pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat.npz')
 
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
-            except :
+            except:
                 print("generating adjacency matrix")
                 s = time()
-                adj_mat = sp.dok_matrix((self.n_users + self.m_items, self.n_users + self.m_items), dtype=np.float32)
+                adj_mat = sp.dok_matrix(
+                    (self.n_users + self.m_items, self.n_users + self.m_items),
+                    dtype=np.float32)
                 adj_mat = adj_mat.tolil()
                 R = self.UserItemNet.tolil()
                 adj_mat[:self.n_users, self.n_users:] = R
@@ -283,7 +295,6 @@ class Loader(BasicDataset):
                 data[user] = [item]
         return data
 
-
     def getUserItemFeedback(self, users, items):
         """
         users:
@@ -294,14 +305,16 @@ class Loader(BasicDataset):
             feedback [-1]
         """
         # print(self.UserItemNet[users, items])
-        return np.array(self.UserItemNet[users, items]).astype('uint8').reshape((-1,))
+        return np.array(self.UserItemNet[users,
+                                         items]).astype('uint8').reshape(
+                                             (-1, ))
 
     def getUserPosItems(self, users):
         posItems = []
         for user in users:
             posItems.append(self.UserItemNet[user].nonzero()[1])
         return posItems
-        
+
     @property
     def testDict(self):
         return self.__testDict
@@ -309,11 +322,11 @@ class Loader(BasicDataset):
     @property
     def validDict(self):
         return self.__validDict
+
+
 # ----------------------------------------------------------------------------
 class LoaderOne(Loader):
-    def __init__(self,
-                 config=world.config,
-                 path="../data/gowalla_one"):
+    def __init__(self, config=world.config, path="../data/gowalla_one"):
         cprint(f'loading [{path}]')
         self.path = path
         self.split = False
@@ -368,10 +381,13 @@ class LoaderOne(Loader):
         print(f"{self.trainDataSize} interactions for training")
         print(f"{len(testUser)} interactions for testing")
         print(f"{len(validUser)} interactions for validating")
-        print(f"{world.dataset} Sparsity : {(self.trainDataSize + len(validUser) + len(testUser)) / self.n_users / self.m_items}")
+        print(
+            f"{world.dataset} Sparsity : {(self.trainDataSize + len(validUser) + len(testUser)) / self.n_users / self.m_items}"
+        )
 
-        self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
-                                      shape=(self.n_users, self.m_items))
+        self.UserItemNet = csr_matrix(
+            (np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
+            shape=(self.n_users, self.m_items))
         self.users_D = np.array(self.UserItemNet.sum(axis=1)).squeeze()
         self.users_D[self.users_D == 0.] = 1
         self.items_D = np.array(self.UserItemNet.sum(axis=0)).squeeze()
@@ -381,9 +397,11 @@ class LoaderOne(Loader):
         self.__testDict = self.build_dict(self.testUser, self.testItem)
         self.__validDict = self.build_dict(self.validUser, self.validItem)
         if world.ALLDATA:
-            self.UserItemNet = csr_matrix((np.ones(len(self._trainUser)), (self._trainUser, self._trainItem)),
-                                      shape=(self.n_users, self.m_items))
+            self.UserItemNet = csr_matrix((np.ones(len(self._trainUser)),
+                                           (self._trainUser, self._trainItem)),
+                                          shape=(self.n_users, self.m_items))
         print(f"{world.dataset} is ready to go")
+
     @property
     def n_users(self):
         return self.__n_users
@@ -407,6 +425,7 @@ class LoaderOne(Loader):
     @property
     def allPos(self):
         return self.__allPos
+
 
 # ----------------------------------------------------------------------------
 # this dataset is for debugging

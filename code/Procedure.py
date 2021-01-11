@@ -15,7 +15,7 @@ from sample import DistillSample
 # from sample import DistillLogits
 from model import PairWiseModel, BasicModel
 from sample import UniformSample_DNS
-from sample import UniformSample_original,DNS_sampling_neg
+from sample import UniformSample_original, DNS_sampling_neg
 from utils import time2str, timer
 
 item_count = None
@@ -23,10 +23,10 @@ item_count = None
 CORES = multiprocessing.cpu_count() // 2
 
 
-def Distill_DNS_yield(dataset, student, sampler, loss_class, epoch , w=None):
+def Distill_DNS_yield(dataset, student, sampler, loss_class, epoch, w=None):
     """Batch version of Distill_DNS, using a generator to offer samples
     """
-    sampler : DistillLogits
+    sampler: DistillLogits
     bpr: utils.BPRLoss = loss_class
     student.train()
     aver_loss = 0
@@ -36,22 +36,33 @@ def Distill_DNS_yield(dataset, student, sampler, loss_class, epoch , w=None):
     for batch_i, Pairs in enumerate(S):
         Pairs = torch.from_numpy(Pairs).long().to(world.DEVICE)
         # print(Pairs.shape)
-        batch_users, batch_pos, batch_neg = Pairs[:, 0], Pairs[:, 1], Pairs[:, 2:]
+        batch_users, batch_pos, batch_neg = Pairs[:, 0], Pairs[:, 1], Pairs[:,
+                                                                            2:]
         with timer(name="KD"):
-            batch_neg, weights, KD_loss = sampler.Sample(batch_users, batch_pos, batch_neg, epoch)
+            batch_neg, weights, KD_loss = sampler.Sample(
+                batch_users, batch_pos, batch_neg, epoch)
         with timer(name="BP"):
-            cri = bpr.stageOne(batch_users, batch_pos, batch_neg, add_loss=KD_loss, weights=weights)
+            cri = bpr.stageOne(batch_users,
+                               batch_pos,
+                               batch_neg,
+                               add_loss=KD_loss,
+                               weights=weights)
         aver_loss += cri
         # Additional section------------------------
         #
         # ------------------------------------------
         if world.tensorboard:
-            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(dataset.trainDataSize / world.config['bpr_batch_size']) + batch_i)
+            w.add_scalar(
+                f'BPRLoss/BPR', cri,
+                epoch *
+                int(dataset.trainDataSize / world.config['bpr_batch_size']) +
+                batch_i)
         del Pairs
     aver_loss = aver_loss / total_batch
     info = f"{timer.dict()}[BPR loss{aver_loss:.3e}]"
     timer.zero()
     return info
+
 
 def Distill_DNS(dataset, student, sampler, loss_class, epoch, w=None):
     """Training procedure for distillation methods
@@ -67,7 +78,7 @@ def Distill_DNS(dataset, student, sampler, loss_class, epoch, w=None):
     Returns:
         str: summary of aver loss and running time for one epoch
     """
-    sampler : DistillLogits
+    sampler: DistillLogits
     bpr: utils.BPRLoss = loss_class
     student.train()
     aver_loss = 0
@@ -77,23 +88,29 @@ def Distill_DNS(dataset, student, sampler, loss_class, epoch, w=None):
     users, posItems, negItems = S[:, 0], S[:, 1], S[:, 2:]
     users, posItems, negItems = utils.shuffle(users, posItems, negItems)
     total_batch = len(users) // world.config['bpr_batch_size'] + 1
-    for (batch_i,
-         (batch_users,
-          batch_pos,
-          batch_neg)) in enumerate(utils.minibatch(users,
-                                                   posItems,
-                                                   negItems,
-                                                   batch_size=world.config['bpr_batch_size'])):
+    for (batch_i, (batch_users, batch_pos, batch_neg)) in enumerate(
+            utils.minibatch(users,
+                            posItems,
+                            negItems,
+                            batch_size=world.config['bpr_batch_size'])):
         with timer(name="KD"):
-            batch_neg, weights, KD_loss = sampler.Sample(batch_users, batch_pos, batch_neg, epoch)
+            batch_neg, weights, KD_loss = sampler.Sample(
+                batch_users, batch_pos, batch_neg, epoch)
         with timer(name="BP"):
-            cri = bpr.stageOne(batch_users, batch_pos, batch_neg, add_loss=KD_loss, weights=weights)
+            cri = bpr.stageOne(batch_users,
+                               batch_pos,
+                               batch_neg,
+                               add_loss=KD_loss,
+                               weights=weights)
         aver_loss += cri
         # Additional section------------------------
         #
         # ------------------------------------------
         if world.tensorboard:
-            w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / world.config['bpr_batch_size']) + batch_i)
+            w.add_scalar(
+                f'BPRLoss/BPR', cri,
+                epoch * int(len(users) / world.config['bpr_batch_size']) +
+                batch_i)
     aver_loss = aver_loss / total_batch
     info = f"{timer.dict()}[BPR loss{aver_loss:.3e}]"
     timer.zero()
@@ -203,7 +220,6 @@ def BPR_train_original(dataset, recommend_model, loss_class, epoch, w=None):
     return f"[BPR[aver loss{aver_loss:.3e}]"
 
 
-
 # ******************************************************************************
 # ============================================================================**
 # ============================================================================**
@@ -220,10 +236,13 @@ def test_one_batch(X):
         ret = utils.RecallPrecision_ATk(groundTrue, r, k)
         pre.append(ret['precision'])
         recall.append(ret['recall'])
-        ndcg.append(utils.NDCGatK_r(groundTrue,r,k))
-    return {'recall':np.array(recall),
-            'precision':np.array(pre),
-            'ndcg':np.array(ndcg)}
+        ndcg.append(utils.NDCGatK_r(groundTrue, r, k))
+    return {
+        'recall': np.array(recall),
+        'precision': np.array(pre),
+        'ndcg': np.array(ndcg)
+    }
+
 
 def test_one_batch_ONE(X):
     """helper function for Test, customized for leave-one-out dataset
@@ -231,12 +250,12 @@ def test_one_batch_ONE(X):
     sorted_items = X[0].numpy()
     groundTrue = X[1]
     r = utils.getLabel_ONE(groundTrue, sorted_items)
-    ndcg, hr= [], []
+    ndcg, hr = [], []
     for k in world.topks:
         ndcg.append(utils.NDCGatK_r_ONE(r, k))
         hr.append(utils.HRatK_ONE(r, k))
-    return {'ndcg':np.array(ndcg),
-            'hr':np.array(hr)}
+    return {'ndcg': np.array(ndcg), 'hr': np.array(hr)}
+
 
 def Test(dataset, Recmodel, epoch, w=None, multicore=0, valid=True):
     """evaluate models
@@ -294,36 +313,46 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0, valid=True):
         assert total_batch == len(users_list)
         X = zip(rating_list, groundTrue_list)
         if world.ONE:
-            results = {'hr': np.zeros(len(world.topks)),
-               'ndcg': np.zeros(len(world.topks))}
+            results = {
+                'hr': np.zeros(len(world.topks)),
+                'ndcg': np.zeros(len(world.topks))
+            }
             if multicore == 1:
                 pre_results = pool.map(test_one_batch, X)
             else:
                 pre_results = []
                 for x in X:
                     pre_results.append(test_one_batch_ONE(x))
-            scale = float(u_batch_size/len(users))
+            scale = float(u_batch_size / len(users))
             for result in pre_results:
                 results['hr'] += result['hr']
                 results['ndcg'] += result['ndcg']
             results['hr'] /= float(len(users))
             results['ndcg'] /= float(len(users))
             if w:
-                w.add_scalars(f'Valid/HR@{world.topks}',
-                            {str(world.topks[i]): results['hr'][i] for i in range(len(world.topks))}, epoch)
-                w.add_scalars(f'Valid/NDCG@{world.topks}',
-                            {str(world.topks[i]): results['ndcg'][i] for i in range(len(world.topks))}, epoch)
+                w.add_scalars(
+                    f'Valid/HR@{world.topks}', {
+                        str(world.topks[i]): results['hr'][i]
+                        for i in range(len(world.topks))
+                    }, epoch)
+                w.add_scalars(
+                    f'Valid/NDCG@{world.topks}', {
+                        str(world.topks[i]): results['ndcg'][i]
+                        for i in range(len(world.topks))
+                    }, epoch)
         else:
-            results = {'precision': np.zeros(len(world.topks)),
-               'recall': np.zeros(len(world.topks)),
-               'ndcg': np.zeros(len(world.topks))}
+            results = {
+                'precision': np.zeros(len(world.topks)),
+                'recall': np.zeros(len(world.topks)),
+                'ndcg': np.zeros(len(world.topks))
+            }
             if multicore == 1:
                 pre_results = pool.map(test_one_batch, X)
             else:
                 pre_results = []
                 for x in X:
                     pre_results.append(test_one_batch(x))
-            scale = float(u_batch_size/len(users))
+            scale = float(u_batch_size / len(users))
             for result in pre_results:
                 results['recall'] += result['recall']
                 results['precision'] += result['precision']
@@ -332,12 +361,21 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0, valid=True):
             results['precision'] /= float(len(users))
             results['ndcg'] /= float(len(users))
             if w:
-                w.add_scalars(f'Valid/Recall@{world.topks}',
-                            {str(world.topks[i]): results['recall'][i] for i in range(len(world.topks))}, epoch)
-                w.add_scalars(f'Valid/Precision@{world.topks}',
-                            {str(world.topks[i]): results['precision'][i] for i in range(len(world.topks))}, epoch)
-                w.add_scalars(f'Valid/NDCG@{world.topks}',
-                            {str(world.topks[i]): results['ndcg'][i] for i in range(len(world.topks))}, epoch)
+                w.add_scalars(
+                    f'Valid/Recall@{world.topks}', {
+                        str(world.topks[i]): results['recall'][i]
+                        for i in range(len(world.topks))
+                    }, epoch)
+                w.add_scalars(
+                    f'Valid/Precision@{world.topks}', {
+                        str(world.topks[i]): results['precision'][i]
+                        for i in range(len(world.topks))
+                    }, epoch)
+                w.add_scalars(
+                    f'Valid/NDCG@{world.topks}', {
+                        str(world.topks[i]): results['ndcg'][i]
+                        for i in range(len(world.topks))
+                    }, epoch)
         if multicore == 1:
             pool.close()
         return results
@@ -383,5 +421,5 @@ def Popularity_Bias(dataset, Recmodel, valid=True):
             rating_K = rating_K.numpy().astype('int')
             user_topk[batch_users] = rating_K
             for i in range(len(batch_users)):
-                Popularity[rating_K[i]] +=1
+                Popularity[rating_K[i]] += 1
     return Popularity.astype('int'), user_topk.astype("int")

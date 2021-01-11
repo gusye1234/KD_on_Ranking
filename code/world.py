@@ -9,7 +9,6 @@ from parse import parse_args
 import multiprocessing
 import sys
 
-
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 ROOT_PATH = '/Users/gus/Desktop/KD'
 CODE_PATH = os.path.join(ROOT_PATH, 'code')
@@ -29,13 +28,13 @@ SAMPLE_METHOD = args.sampler
 
 config = {}
 all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon']
-all_models  = ['mf', 'lgn']
+all_models = ['mf', 'lgn']
 # config['batch_size'] = 4096
 config['bpr_batch_size'] = args.bpr_batch
 config['latent_dim_rec'] = args.recdim
-config['lightGCN_n_layers']= args.layer
+config['lightGCN_n_layers'] = args.layer
 config['dropout'] = args.dropout
-config['keep_prob']  = args.keepprob
+config['keep_prob'] = args.keepprob
 config['A_n_fold'] = args.a_fold
 config['test_u_batch_size'] = args.testbatch
 config['multicore'] = args.multicore
@@ -49,7 +48,7 @@ config['teacher_layer'] = args.teacher_layer
 config['teacher_model'] = 'lgn'
 DNS_K = args.dns_k
 method = args.method
-if method=='dns' and DNS_K == 1:
+if method == 'dns' and DNS_K == 1:
     method = 'original'
 
 GPU = torch.cuda.is_available()
@@ -59,17 +58,15 @@ SEED = args.seed
 
 dataset = args.dataset
 model_name = args.model
-if model_name == 'lgn' and args.layer==0:
+if model_name == 'lgn' and args.layer == 0:
     model_method = 'mf'
 else:
     model_method = 'lgn'
 # if dataset not in all_dataset:
 # raise NotImplementedError(f"Haven't supported {dataset} yet!, try {all_dataset}")
 if model_name not in all_models:
-    raise NotImplementedError(f"Haven't supported {model_name} yet!, try {all_models}")
-
-
-
+    raise NotImplementedError(
+        f"Haven't supported {model_name} yet!, try {all_models}")
 
 TRAIN_epochs = args.epochs
 LOAD = args.load
@@ -94,9 +91,9 @@ from warnings import simplefilter
 simplefilter(action="ignore", category=FutureWarning)
 
 
-
-def cprint(words : str, ends='\n'):
+def cprint(words: str, ends='\n'):
     print(f"\033[0;30;43m{words}\033[0m", end=ends)
+
 
 logo = r"""
 ██╗      ██████╗ ███╗   ██╗

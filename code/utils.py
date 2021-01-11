@@ -6,7 +6,7 @@ import world
 import torch
 import random
 import numpy as np
-from  tqdm import tqdm
+from tqdm import tqdm
 from time import time
 from model import LightGCN
 from torch import nn, optim
@@ -14,13 +14,12 @@ from torch import log, Tensor
 from model import PairWiseModel
 from dataloader import BasicDataset, Loader
 
+
 # ============================================================================
 # ============================================================================
 # pair loss
 class BPRLoss:
-    def __init__(self,
-                 recmodel : PairWiseModel,
-                 config : dict):
+    def __init__(self, recmodel: PairWiseModel, config: dict):
         self.model = recmodel
         self.weight_decay = config['decay']
         self.lr = config['lr']
@@ -31,11 +30,11 @@ class BPRLoss:
                  pos,
                  neg,
                  weights=None,
-                 add_loss : torch.Tensor=None):
+                 add_loss: torch.Tensor = None):
         # if world.CD == True:
         #     return self.cd_loss(users, pos, weights, add_loss)
         loss, reg_loss = self.model.bpr_loss(users, pos, neg, weights=weights)
-        reg_loss = reg_loss*self.weight_decay
+        reg_loss = reg_loss * self.weight_decay
         loss = loss + reg_loss
         if add_loss is not None:
             assert add_loss.requires_grad == True
@@ -48,10 +47,7 @@ class BPRLoss:
         return loss.cpu().item()
 
 
-
-def getTestweight(users   : Tensor,
-                  items   : Tensor,
-                  dataset : BasicDataset):
+def getTestweight(users: Tensor, items: Tensor, dataset: BasicDataset):
     """
         designed only for levave-one-out data
     """
@@ -68,6 +64,7 @@ def getTestweight(users   : Tensor,
     weights[index] = world.ARGS.testweight
 
     return Tensor(weights).to(world.DEVICE)
+
 
 # ============================================================================
 # ============================================================================
@@ -91,7 +88,9 @@ class EarlyStop:
             if self.suffer >= self.patience:
                 return True
             self.sofar += 1
-            self.mean = self.mean*(self.sofar - 1)/self.sofar + performance['ndcg'][-1]/self.sofar
+            self.mean = self.mean * (
+                self.sofar -
+                1) / self.sofar + performance['ndcg'][-1] / self.sofar
             print(
                 f"******************Suffer {performance['ndcg'][-1]}:{self.mean}"
             )
@@ -106,6 +105,7 @@ class EarlyStop:
             torch.save(self.best_model, self.filename)
             return False
 
+
 def set_seed(seed):
     np.random.seed(seed)
     if torch.cuda.is_available():
@@ -113,7 +113,8 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
     torch.manual_seed(seed)
 
-def getFileName(model_name, dataset,rec_dim, layers=None, dns_k=None):
+
+def getFileName(model_name, dataset, rec_dim, layers=None, dns_k=None):
     if model_name == 'mf':
         if dns_k is not None:
             file = f"mf-{dataset}-{rec_dim}-{dns_k}"
@@ -122,17 +123,19 @@ def getFileName(model_name, dataset,rec_dim, layers=None, dns_k=None):
     elif model_name == 'lgn':
         assert layers is not None
         if dns_k is not None:
-            file = f"lgn{layers}-{dataset}-{rec_dim}-{dns_k}"
+            file = f"lgn-{dataset}-{layers}-{rec_dim}-{dns_k}"
         else:
-            file = f"lgn{layers}-{dataset}-{rec_dim}"
-    file = file + f"-{world.SEED}.pth.tar"
+            file = f"lgn-{dataset}-{layers}-{rec_dim}"
+    file = file + f".pth.tar"
     return file
+
 
 def getLogFile():
     model = world.model_method
     comment = world.comment
     dataset = world.dataset
     return f"{dataset}-{model}-{comment}.txt"
+
 
 def minibatch(*tensors, **kwargs):
 
@@ -146,13 +149,13 @@ def minibatch(*tensors, **kwargs):
         for i in range(0, len(tensors[0]), batch_size):
             yield tuple(x[i:i + batch_size] for x in tensors)
 
+
 def shuffle(*arrays, **kwargs):
 
     require_indices = kwargs.get('indices', False)
 
     if len(set(len(x) for x in arrays)) != 1:
-        raise ValueError('All inputs to shuffle must have '
-                         'the same length.')
+        raise ValueError('All inputs to shuffle must have ' 'the same length.')
 
     shuffle_indices = np.arange(len(arrays[0]))
     np.random.shuffle(shuffle_indices)
@@ -167,11 +170,13 @@ def shuffle(*arrays, **kwargs):
     else:
         return result
 
+
 def TO(*tensors, **kwargs):
     results = []
     for tensor in tensors:
         results.append(tensor.to(world.DEVICE))
     return results
+
 
 def shapes(*tensors):
     shape = [tensor.size() for tensor in tensors]
@@ -179,17 +184,19 @@ def shapes(*tensors):
     print(" : ".join(strs))
 
 
-def getTeacherConfig(config : dict):
+def getTeacherConfig(config: dict):
     teacher_dict = config.copy()
     teacher_dict['lightGCN_n_layers'] = teacher_dict['teacher_layer']
     teacher_dict['latent_dim_rec'] = teacher_dict['teacher_dim']
     return teacher_dict
 
-def time2str(sam_time : list):
+
+def time2str(sam_time: list):
     sam_copy = ""
     for t in sam_time:
         sam_copy += '+' + f"{t:.2f}"
     return sam_copy[1:]
+
 
 # Draw and Count<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 def draw_longtail(dataset, pop1, pop2):
@@ -216,7 +223,7 @@ def draw_longtail(dataset, pop1, pop2):
 def draw(dataset, pop1, pop2, name1='pop1', name2='pop2'):
     import matplotlib.pyplot as plt
     import powerlaw
-    dataset : Loader
+    dataset: Loader
     # pop_item, index = dataset.popularity()
     x = dataset.popularity()[0]
     print(x.sum(), pop1.sum(), pop2.sum())
@@ -229,13 +236,37 @@ def draw(dataset, pop1, pop2, name1='pop1', name2='pop2'):
     pop1_mask = (pop1 > x)
     pop2_mask = (pop2 > x)
 
-    plt.scatter(x[~pop1_mask], pop1[~pop1_mask], c='springgreen', linewidth=0, s=10, alpha=1, label=name1)
-    plt.scatter(x[~pop2_mask], pop2[~pop2_mask], c='blue', s=10, linewidth=0, alpha=0.3,label=name2)
+    plt.scatter(x[~pop1_mask],
+                pop1[~pop1_mask],
+                c='springgreen',
+                linewidth=0,
+                s=10,
+                alpha=1,
+                label=name1)
+    plt.scatter(x[~pop2_mask],
+                pop2[~pop2_mask],
+                c='blue',
+                s=10,
+                linewidth=0,
+                alpha=0.3,
+                label=name2)
 
-    plt.scatter(x[pop2_mask],pop2[pop2_mask], c='blue', s=30, linewidth=0, alpha=0.8, label=name2)
-    plt.scatter(x[pop1_mask], pop1[pop1_mask], c='springgreen', linewidth=0, s=30, alpha=1, label=name1)
+    plt.scatter(x[pop2_mask],
+                pop2[pop2_mask],
+                c='blue',
+                s=30,
+                linewidth=0,
+                alpha=0.8,
+                label=name2)
+    plt.scatter(x[pop1_mask],
+                pop1[pop1_mask],
+                c='springgreen',
+                linewidth=0,
+                s=30,
+                alpha=1,
+                label=name1)
 
-    plt.plot(x, x, linewidth=2,label="dataset")
+    plt.plot(x, x, linewidth=2, label="dataset")
     plt.xlabel("Dataset popularity rate")
     plt.ylabel("Model popularity rate")
     handles, labels = plt.gca().get_legend_handles_labels()
@@ -246,6 +277,7 @@ def draw(dataset, pop1, pop2, name1='pop1', name2='pop2'):
     plt.title("Gowalla")
     plt.show()
 
+
 def powerlaw(pop1, pop2, pop3):
     import matplotlib.pyplot as plt
     import powerlaw
@@ -253,15 +285,15 @@ def powerlaw(pop1, pop2, pop3):
     fit2 = powerlaw.Fit(pop2)
     fit3 = powerlaw.Fit(pop3)
     fig1 = fit1.plot_pdf(color='b', label="Teacher")
-    fit1.power_law.plot_pdf(color='b', linestyle="--",ax=fig1)
+    fit1.power_law.plot_pdf(color='b', linestyle="--", ax=fig1)
 
     # fig1 = fit1.plot_ccdf(color='b', label="Teacher")
     # fit1.power_law.plot_ccdf(color='b', linestyle="--", ax=fig1)
 
     fit2.plot_pdf(color='y', ax=fig1, label="RD-32")
-    fit2.power_law.plot_pdf(color='y', linestyle="--",ax=fig1)
+    fit2.power_law.plot_pdf(color='y', linestyle="--", ax=fig1)
     fit3.plot_pdf(color='r', ax=fig1, label="Student")
-    fit3.power_law.plot_pdf(color='r', linestyle="--",ax=fig1)
+    fit3.power_law.plot_pdf(color='r', linestyle="--", ax=fig1)
 
     # fit2.plot_ccdf(color='y', ax=fig1, label="RD-32")
     # fit2.power_law.plot_ccdf(color='y', linestyle="--", ax=fig1)
@@ -274,6 +306,7 @@ def powerlaw(pop1, pop2, pop3):
     # plt.title("Complementary Cumulative Distribution Function")
     plt.legend()
     plt.show()
+
 
 def map_item_three(pop_item):
     """mapping item into short-head(0.2), long-tail(0.6), distant-tail(0.2)
@@ -308,10 +341,9 @@ def map_item_N(pop_item, spilt):
     for i in range(len(spilt)):
         left = ceil(sum(spilt[:i]) * num_item)
         right = floor((left + spilt[i]) * num_item)
-        mapping.append(set(
-            index[left:right]
-        ))
+        mapping.append(set(index[left:right]))
     return mapping
+
 
 def APT(pop_user, mappings):
     """calculate the APT metrics for different sets
@@ -331,13 +363,13 @@ def APT(pop_user, mappings):
         for user_item in pop_user:
             count = list(map(lambda x: x in mapping, user_item))
             apt += np.mean(count)
-        apt = apt/total_user
+        apt = apt / total_user
         apts.append(apt)
     return apts
 
-def popularity_ratio(pop_model : np.ndarray,
-                     pop_model_user : np.ndarray,
-                     dataset : Loader):
+
+def popularity_ratio(pop_model: np.ndarray, pop_model_user: np.ndarray,
+                     dataset: Loader):
     """calculate the degree of the "long-tailness" for a distribution
 
     Args:
@@ -356,12 +388,13 @@ def popularity_ratio(pop_model : np.ndarray,
     metrics = {}
 
     prop_model = pop_model / num_interaction
-    prop_uniform = 1./num_item
+    prop_uniform = 1. / num_item
 
-    prop_dataset = pop_dataset/pop_dataset.sum()
+    prop_dataset = pop_dataset / pop_dataset.sum()
     # print("dataset KL",
     #       np.sum(prop_dataset * np.log(prop_dataset / prop_uniform + 1e-7)))
-    metrics['I_KL']= np.sum(prop_model*np.log(prop_model/prop_uniform + 1e-7))
+    metrics['I_KL'] = np.sum(prop_model *
+                             np.log(prop_model / prop_uniform + 1e-7))
 
     mapping = map_item_three(dataset.popularity()[0])
     mapping_N = map_item_N((dataset.popularity()[0]),
@@ -372,11 +405,13 @@ def popularity_ratio(pop_model : np.ndarray,
 
     # print("dataset APT", APT(dataset.allPos, mapping))
     # print("dataset bin", np.sum(pop_dataset/pop_dataset.max()))
-    metrics['I_bin'] = np.sum(pop_model/np.max(pop_model))
+    metrics['I_bin'] = np.sum(pop_model / np.max(pop_model))
 
     return metrics
 
+
 # Dataset spliting (only used once for generation)<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 
 def _loo_split_dataset(train_f, test_f):
     train = {}
@@ -423,6 +458,7 @@ def _loo_split_dataset(train_f, test_f):
         for t_data in test_seq:
             f.write(f"{t_data[0]} {t_data[1]} {1}\n")
 
+
 def _split_dataset(train_f, ratio=.1):
     train = {}
     with open(train_f, 'r') as f:
@@ -437,9 +473,9 @@ def _split_dataset(train_f, ratio=.1):
         items = np.array(train[user]).astype('int')
         valid_num = round(ratio * len(items))
         if valid_num > 0:
-            index = np.random.choice(
-                np.arange(len(items)), size=(valid_num, ), replace=False
-            )
+            index = np.random.choice(np.arange(len(items)),
+                                     size=(valid_num, ),
+                                     replace=False)
             train_index = np.ones_like(items).astype('bool')
             train_index[index] = False
             train_items = items[train_index]
@@ -518,7 +554,6 @@ class timer:
             self.named = False
             self.tape = tape or timer.TAPE
 
-
     def __enter__(self):
         self.start = timer.time()
         return self
@@ -534,9 +569,11 @@ def load(model, file):
     try:
         model.load_state_dict(torch.load(file))
     except RuntimeError:
-        model.load_state_dict(torch.load(file, map_location=torch.device('cpu')))
+        model.load_state_dict(
+            torch.load(file, map_location=torch.device('cpu')))
     except FileNotFoundError:
         raise FileNotFoundError(f"{file} NOT exist!!!")
+
 
 def combinations(start, end, com_num=2):
     """get all the combinations of [start, end]"""
@@ -586,21 +623,23 @@ def RecallPrecision_ATk(test_data, r, k):
     right_pred = r[:, :k].sum(1)
     precis_n = k
     recall_n = np.array([len(test_data[i]) for i in range(len(test_data))])
-    recall = np.sum(right_pred/recall_n)
-    precis = np.sum(right_pred)/precis_n
+    recall = np.sum(right_pred / recall_n)
+    precis = np.sum(right_pred) / precis_n
     return {'recall': recall, 'precision': precis}
+
 
 def MRRatK_r(r, k):
     """
     Mean Reciprocal Rank
     """
     pred_data = r[:, :k]
-    scores = np.log2(1./np.arange(1, k+1))
-    pred_data = pred_data/scores
+    scores = np.log2(1. / np.arange(1, k + 1))
+    pred_data = pred_data / scores
     pred_data = pred_data.sum(1)
     return np.sum(pred_data)
 
-def NDCGatK_r(test_data,r,k):
+
+def NDCGatK_r(test_data, r, k):
     """
     Normalized Discounted Cumulative Gain
     rel_i = 1 or 0, so 2^{rel_i} - 1 = 1 or 0
@@ -613,15 +652,16 @@ def NDCGatK_r(test_data,r,k):
         length = k if k <= len(items) else len(items)
         test_matrix[i, :length] = 1
     max_r = test_matrix
-    idcg = np.sum(max_r * 1./np.log2(np.arange(2, k + 2)), axis=1)
-    dcg = pred_data*(1./np.log2(np.arange(2, k + 2)))
+    idcg = np.sum(max_r * 1. / np.log2(np.arange(2, k + 2)), axis=1)
+    dcg = pred_data * (1. / np.log2(np.arange(2, k + 2)))
     dcg = np.sum(dcg, axis=1)
     idcg[idcg == 0.] = 1.
-    ndcg = dcg/idcg
+    ndcg = dcg / idcg
     ndcg[np.isnan(ndcg)] = 0.
     return np.sum(ndcg)
 
-def NDCGatK_r_ONE(r,k):
+
+def NDCGatK_r_ONE(r, k):
     """
     Normalized Discounted Cumulative Gain
     rel_i = 1 or 0, so 2^{rel_i} - 1 = 1 or 0
@@ -629,15 +669,17 @@ def NDCGatK_r_ONE(r,k):
     pred_data = r[:, :k]
 
     idcg = 1
-    dcg = pred_data*(1./np.log2(np.arange(2, k + 2)))
+    dcg = pred_data * (1. / np.log2(np.arange(2, k + 2)))
     dcg = np.sum(dcg, axis=1)
     ndcg = dcg
     ndcg[np.isnan(ndcg)] = 0.
     return np.sum(ndcg)
 
-def HRatK_ONE(r,k):
+
+def HRatK_ONE(r, k):
     pred = r[:, :k]
     return np.sum(pred)
+
 
 def getLabel_ONE(test_data, pred_data):
     r = []
@@ -649,6 +691,7 @@ def getLabel_ONE(test_data, pred_data):
         r.append(pred)
     return np.array(r).astype('float')
 
+
 def getLabel(test_data, pred_data):
     r = []
     for i in range(len(test_data)):
@@ -658,7 +701,6 @@ def getLabel(test_data, pred_data):
         pred = np.array(pred).astype("float")
         r.append(pred)
     return np.array(r).astype('float')
-
 
 
 # ====================end Metrics=============================

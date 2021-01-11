@@ -32,15 +32,19 @@ if len(world.comment) == 0:
 import register
 from register import dataset
 
-
 if world.EMBEDDING:
     # embedding distillation
     print("distill")
     tea_config = utils.getTeacherConfig(world.config)
     world.cprint('teacher')
-    teacher_model = register.MODELS[world.model_name](tea_config, dataset, fix=True)
+    teacher_model = register.MODELS[world.model_name](tea_config,
+                                                      dataset,
+                                                      fix=True)
     teacher_model.eval()
-    teacher_file = utils.getFileName(world.model_name, world.dataset, world.config['teacher_dim'], layers=world.config['teacher_layer'])
+    teacher_file = utils.getFileName(world.model_name,
+                                     world.dataset,
+                                     world.config['teacher_dim'],
+                                     layers=world.config['teacher_layer'])
     teacher_weight_file = os.path.join(world.FILE_PATH, teacher_file)
     print('-------------------------')
     world.cprint("loaded teacher weights from")
@@ -49,7 +53,8 @@ if world.EMBEDDING:
     utils.load(teacher_model, teacher_weight_file)
     teacher_model = teacher_model.to(world.DEVICE)
     cprint("[TEST Teacher]")
-    results = Procedure.Test(dataset, teacher_model, 0, None, world.config['multicore'])
+    results = Procedure.Test(dataset, teacher_model, 0, None,
+                             world.config['multicore'])
     pprint(results)
     Recmodel = register.MODELS['leb'](world.config, dataset, teacher_model)
     print(Recmodel)
@@ -59,10 +64,10 @@ else:
 procedure = register.TRAIN[world.method]
 bpr = utils.BPRLoss(Recmodel, world.config)
 # ----------------------------------------------------------------------------
-file = utils.getFileName(world.model_name, 
-                         world.dataset, 
-                         world.config['latent_dim_rec'], 
-                         layers=world.config['lightGCN_n_layers'], 
+file = utils.getFileName(world.model_name,
+                         world.dataset,
+                         world.config['latent_dim_rec'],
+                         layers=world.config['lightGCN_n_layers'],
                          dns_k=world.DNS_K)
 
 weight_file = os.path.join(world.FILE_PATH, file)
@@ -75,11 +80,12 @@ Recmodel = Recmodel.to(world.DEVICE)
 # ----------------------------------------------------------------------------
 # init tensorboard
 if world.tensorboard:
-    w : SummaryWriter = SummaryWriter(
+    w: SummaryWriter = SummaryWriter(
         os.path.join(
-            world.BOARD_PATH,time.strftime("%m-%d-%Hh-%Mm-") + f"{world.method}-{str(world.DNS_K)}-{file.split('.')[0]}-{world.comment}"
-            )
-        )
+            world.BOARD_PATH,
+            time.strftime("%m-%d-%Hh-%Mm-") +
+            f"{world.method}-{str(world.DNS_K)}-{file.split('.')[0]}-{world.comment}"
+        ))
 else:
     w = None
     world.cprint("not enable tensorflowboard")
@@ -89,14 +95,19 @@ try:
     for epoch in range(world.TRAIN_epochs):
 
         start = time.time()
-        output_information = procedure(dataset, Recmodel, bpr, epoch,w=w)
+        output_information = procedure(dataset, Recmodel, bpr, epoch, w=w)
 
         print(
             f'EPOCH[{epoch}/{world.TRAIN_epochs}][{time.time() - start:.2f}] - {output_information}'
         )
-        if epoch % 5 == 0 and epoch !=0:
+        if epoch % 5 == 0 and epoch != 0:
             cprint("TEST", ends=': ')
-            results = Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'], valid=True)
+            results = Procedure.Test(dataset,
+                                     Recmodel,
+                                     epoch,
+                                     w,
+                                     world.config['multicore'],
+                                     valid=True)
             pprint(results)
             if earlystop.step(epoch, results):
                 print("trigger earlystop")
@@ -110,13 +121,8 @@ finally:
 best_result = earlystop.best_result
 torch.save(earlystop.best_model, weight_file)
 Recmodel.load_state_dict(earlystop.best_model)
-results = Procedure.Test(dataset,
-                         Recmodel,
-                         world.TRAIN_epochs,
-                         valid=False)
-log_file = os.path.join(
-    world.LOG_PATH, utils.getLogFile()
-)
+results = Procedure.Test(dataset, Recmodel, world.TRAIN_epochs, valid=False)
+log_file = os.path.join(world.LOG_PATH, utils.getLogFile())
 with open(log_file, 'a') as f:
     f.write("#######################################\n")
     f.write(f"SEED: {world.SEED}, DNS_K: {str(world.DNS_K)}, Stop at: {earlystop.best_epoch+1}/{world.TRAIN_epochs}\n"\
