@@ -9,6 +9,8 @@ from parse import parse_args
 import multiprocessing
 import sys
 
+
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 ROOT_PATH = '/Users/gus/Desktop/KD'
 CODE_PATH = os.path.join(ROOT_PATH, 'code')
